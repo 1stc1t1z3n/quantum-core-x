@@ -217,8 +217,7 @@ public class PlayerEntity : Entity, IPlayerEntity, IDisposable
 
     private void Warp(int x, int y)
     {
-        _world.DespawnEntity(this);
-
+        // Set destination before despawn so Persist() saves the new position to the DB
         PositionX = x;
         PositionY = y;
 
@@ -233,6 +232,9 @@ public class PlayerEntity : Entity, IPlayerEntity, IDisposable
             ServerPort = host._port
         };
         Connection.Send(packet);
+
+        // Persist new position then remove from world (async despawn saves to DB)
+        _world.DespawnPlayerAsync(this).Wait();
     }
 
     public void Move(Coordinates position) => Move((int)position.X, (int)position.Y);
