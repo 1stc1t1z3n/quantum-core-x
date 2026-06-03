@@ -144,6 +144,7 @@ public class OutgoingPacketTests
                 .Concat(BitConverter.GetBytes(obj.Character.BodyPart))
                 .Append((byte)obj.Character.NameChange)
                 .Concat(BitConverter.GetBytes(obj.Character.HairPart))
+                .Concat(BitConverter.GetBytes(obj.Character.SashPart))
                 .Concat(BitConverter.GetBytes(obj.Character.Unknown))
                 .Concat(BitConverter.GetBytes(obj.Character.PositionX))
                 .Concat(BitConverter.GetBytes(obj.Character.PositionY))
@@ -221,7 +222,8 @@ public class OutgoingPacketTests
             .RuleFor(x => x.Parts,
                 faker => new[]
                 {
-                    faker.Random.UShort(), faker.Random.UShort(), faker.Random.UShort(), faker.Random.UShort()
+                    faker.Random.UShort(), faker.Random.UShort(), faker.Random.UShort(),
+                    faker.Random.UShort(), faker.Random.UShort()
                 })
             .Generate();
         var bytes = _serializer.Serialize(obj);
@@ -236,6 +238,7 @@ public class OutgoingPacketTests
                 .Concat(BitConverter.GetBytes(obj.Affects))
                 .Concat(BitConverter.GetBytes(obj.GuildId))
                 .Concat(BitConverter.GetBytes(obj.RankPoints))
+                .Concat(BitConverter.GetBytes(obj.Level))
                 .Append((byte)obj.PvpMode)
                 .Concat(BitConverter.GetBytes(obj.MountVnum))
                 .ToArray()
@@ -260,8 +263,8 @@ public class OutgoingPacketTests
 
         bytes.Should().Equal(
             new byte[] { 0x15 }
-                .Concat(BitConverter.GetBytes(obj.Position))
                 .Append((byte)obj.Window)
+                .Concat(BitConverter.GetBytes(obj.Position))
                 .Concat(BitConverter.GetBytes(obj.ItemId))
                 .Append(obj.Count)
                 .Concat(BitConverter.GetBytes(obj.Flags))
@@ -382,6 +385,7 @@ public class OutgoingPacketTests
                     .Concat(BitConverter.GetBytes(c.BodyPart))
                     .Append((byte)c.NameChange)
                     .Concat(BitConverter.GetBytes(c.HairPart))
+                    .Concat(BitConverter.GetBytes(c.SashPart))
                     .Concat(BitConverter.GetBytes(c.Unknown))
                     .Concat(BitConverter.GetBytes(c.PositionX))
                     .Concat(BitConverter.GetBytes(c.PositionY))
@@ -568,7 +572,8 @@ public class OutgoingPacketTests
             .RuleFor(x => x.Parts,
                 faker => new[]
                 {
-                    faker.Random.UShort(), faker.Random.UShort(), faker.Random.UShort(), faker.Random.UShort()
+                    faker.Random.UShort(), faker.Random.UShort(), faker.Random.UShort(),
+                    faker.Random.UShort(), faker.Random.UShort()
                 })
             .Generate();
         var bytes = _serializer.Serialize(obj);

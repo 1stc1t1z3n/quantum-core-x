@@ -13,7 +13,7 @@ public partial class CharacterInfo
     [Field(1, Length = PlayerConstants.PLAYER_NAME_MAX_LENGTH)]
     public string Name { get; set; } = "";
 
-    [Field(2, ArrayLength = 4)] public ushort[] Parts { get; set; } = new ushort[4];
+    [Field(2, ArrayLength = 5)] public ushort[] Parts { get; set; } = new ushort[5];
     [Field(3)] public EEmpire Empire { get; set; }
     [Field(4)] public uint GuildId { get; set; }
     [Field(5)] public uint Level { get; set; }

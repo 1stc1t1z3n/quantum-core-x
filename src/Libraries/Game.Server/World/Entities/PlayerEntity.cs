@@ -1294,7 +1294,8 @@ public class PlayerEntity : Entity, IPlayerEntity, IDisposable
             {
                 (ushort)(Inventory.EquipmentWindow.Body?.ItemId ?? 0),
                 (ushort)(Inventory.EquipmentWindow.Weapon?.ItemId ?? 0), 0,
-                (ushort)Inventory.EquipmentWindow.Hair.GetHairPartOffsetForClient(Player.PlayerClass.GetClass())
+                (ushort)Inventory.EquipmentWindow.Hair.GetHairPartOffsetForClient(Player.PlayerClass.GetClass()),
+                0 // SashPart
             }
         });
     }
@@ -1308,11 +1309,13 @@ public class PlayerEntity : Entity, IPlayerEntity, IDisposable
             {
                 (ushort)(Inventory.EquipmentWindow.Body?.ItemId ?? 0),
                 (ushort)(Inventory.EquipmentWindow.Weapon?.ItemId ?? 0), 0,
-                (ushort)Inventory.EquipmentWindow.Hair.GetHairPartOffsetForClient(Player.PlayerClass.GetClass())
+                (ushort)Inventory.EquipmentWindow.Hair.GetHairPartOffsetForClient(Player.PlayerClass.GetClass()),
+                0 // SashPart
             },
             MoveSpeed = MovementSpeed,
             AttackSpeed = AttackSpeed,
-            GuildId = Guild?.Id ?? 0
+            GuildId = Guild?.Id ?? 0,
+            Level = Player.Level
         };
 
         Connection.Send(packet);
