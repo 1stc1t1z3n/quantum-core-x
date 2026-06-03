@@ -8,4 +8,5 @@ public class HostingOptions
     public const string MODE_GAME = "game";
     [Required] public ushort Port { get; set; }
     public string? IpAddress { get; set; }
+    public string? AdvertisedIpAddress { get; set; }
 }

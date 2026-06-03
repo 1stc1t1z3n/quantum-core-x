@@ -39,6 +39,12 @@ public class SimpleBehaviour : IBehaviour
     private readonly Dictionary<uint, uint> _damageMap = new();
 
     public bool IsAggressive { get; set; }
+    public bool IsCoward { get; set; }
+
+    private IEntity? _fleeTarget;
+    private ServerTimestamp? _fleeUntil;
+    private const long FLEE_DURATION_MS = 5000;
+    private const int FLEE_DISTANCE = 1500;
 
     // mob idle wander
     private const int MOVE_MIN_DISTANCE = 300;
@@ -73,6 +79,7 @@ public class SimpleBehaviour : IBehaviour
         _spawnX = entity.PositionX;
         _spawnY = entity.PositionY;
         IsAggressive = entity is MonsterEntity mob && mob.Proto.AiFlag.HasAnyFlags(EAiFlags.AGGRESSIVE);
+        IsCoward = entity is MonsterEntity cowardMob && cowardMob.Proto.AiFlag.HasAnyFlags(EAiFlags.COWARD);
         _lastAttackTime = null;
         _lastChangeAttackPositionTime = null;
     }
@@ -143,10 +150,47 @@ public class SimpleBehaviour : IBehaviour
         TryGoto(target.Coordinates() + stepDelta, ctx.Timestamp);
     }
 
+    private void FleeFrom(IEntity threat, TickContext ctx)
+    {
+        if (_entity is null) return;
+
+        double dx = _entity.PositionX - threat.PositionX;
+        double dy = _entity.PositionY - threat.PositionY;
+        var dist = Math.Sqrt(dx * dx + dy * dy);
+        if (dist < 1) { dx = 1; dist = 1; }
+
+        dx /= dist;
+        dy /= dist;
+
+        var fleeTarget = new Coordinates(
+            (uint)Math.Clamp(_entity.PositionX + (int)(dx * FLEE_DISTANCE), 0, int.MaxValue),
+            (uint)Math.Clamp(_entity.PositionY + (int)(dy * FLEE_DISTANCE), 0, int.MaxValue));
+
+        TryGoto(fleeTarget, ctx.Timestamp);
+    }
+
     public void Update(TickContext ctx)
     {
         if (_entity is null || _proto is null)
         {
+            return;
+        }
+
+        // Coward flee takes priority over normal combat
+        if (_fleeTarget is not null)
+        {
+            var fleeDone = _fleeUntil.HasValue && ctx.ElapsedSince(_fleeUntil.Value) > TimeSpan.FromMilliseconds(FLEE_DURATION_MS);
+            var threatGone = _fleeTarget.Dead || _fleeTarget.Map != _entity.Map;
+            if (fleeDone || threatGone)
+            {
+                _fleeTarget = null;
+                _fleeUntil = null;
+                TryGoto(new Coordinates((uint)_spawnX, (uint)_spawnY), ctx.Timestamp);
+            }
+            else if (_entity.State == EEntityState.IDLE)
+            {
+                FleeFrom(_fleeTarget, ctx);
+            }
             return;
         }
 
@@ -407,6 +451,14 @@ public class SimpleBehaviour : IBehaviour
     public void TookDamage(IEntity attacker, uint damage)
     {
         if (_entity is null) return;
+
+        if (IsCoward)
+        {
+            _fleeTarget = attacker;
+            _fleeUntil = (_entity.Map as Map)!.Clock.Now;
+            Target = null;
+            return;
+        }
 
         _lastAttackTime = (_entity.Map as Map)!.Clock.Now;
         _lastAttackX = _entity.PositionX;

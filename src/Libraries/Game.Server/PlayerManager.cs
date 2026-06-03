@@ -136,7 +136,8 @@ public class PlayerManager : IPlayerManager
             Health = job.StartHp,
             Mana = job.StartSp,
             Empire = empire,
-            Slot = (byte)existingPlayers.Length
+            Slot = (byte)existingPlayers.Length,
+            BodyPart = appearance
         };
 
 

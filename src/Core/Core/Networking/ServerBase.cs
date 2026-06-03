@@ -30,6 +30,7 @@ public abstract class ServerBase<T> : BackgroundService, IServerBase
     public ServerClock Clock { get; }
     public ushort Port { get; }
     public IPAddress IpAddress { get; }
+    public IPAddress AdvertisedIpAddress { get; }
 
     public ServerBase(IPacketManager packetManager, ILogger logger, PluginExecutor pluginExecutor,
         IServiceProvider serviceProvider, ServerClock clock, string mode)
@@ -49,6 +50,9 @@ public abstract class ServerBase<T> : BackgroundService, IServerBase
             ? ipAddress
             : IPAddress.Loopback;
         IpAddress = desiredIpAddress;
+        AdvertisedIpAddress = IPAddress.TryParse(hostingOptions.AdvertisedIpAddress, out var advertisedIp)
+            ? advertisedIp
+            : IpAddress;
         Listener = new TcpListener(IpAddress, Port);
     }
 

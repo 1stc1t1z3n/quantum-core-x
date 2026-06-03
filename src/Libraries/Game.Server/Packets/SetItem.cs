@@ -8,13 +8,13 @@ namespace QuantumCore.Game.Packets;
 [PacketGenerator]
 public partial class SetItem
 {
-    [Field(0)] public WindowType Window { get; set; }
-    [Field(1)] public ushort Position { get; set; }
+    [Field(0)] public ushort Position { get; set; }
+    [Field(1)] public WindowType Window { get; set; }
     [Field(2)] public uint ItemId { get; set; }
     [Field(3)] public byte Count { get; set; }
     [Field(4)] public uint Flags { get; set; }
     [Field(5)] public uint AntiFlags { get; set; }
-    [Field(6)] public uint Highlight { get; set; }
+    [Field(6)] public byte Highlight { get; set; }
     [Field(7, ArrayLength = 3)] public uint[] Sockets { get; set; } = new uint[3];
 
     [Field(8, ArrayLength = 7)]

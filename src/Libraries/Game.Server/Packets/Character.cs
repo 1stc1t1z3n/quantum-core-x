@@ -25,6 +25,6 @@ public class Character
     [Field(13)] public int PositionX { get; set; }
     [Field(14)] public int PositionY { get; set; }
     [Field(15)] public int Ip { get; set; }
-    [Field(16)] public ushort Port { get; set; }
+    [Field(16)] public int Port { get; set; }
     [Field(17)] public ESkillGroup SkillGroup { get; set; }
 }

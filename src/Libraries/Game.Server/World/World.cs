@@ -249,7 +249,7 @@ public class World : IWorld, ILoadable
 
         return new CoreHost
         {
-            _ip = _serviceProvider.GetRequiredService<IServerBase>().IpAddress, // lazy because of dependency loop
+            _ip = _serviceProvider.GetRequiredService<IServerBase>().AdvertisedIpAddress, // lazy because of dependency loop
             _port = (ushort)GameServer.Instance.Port
         };
     }

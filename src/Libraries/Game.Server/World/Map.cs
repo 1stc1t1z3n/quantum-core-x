@@ -102,8 +102,8 @@ public class Map : IMap
     {
         _logger.LogDebug("Load map {Name} at {Position} (size {Width}x{Height})", Name, Position, Width, Height);
 
-        await _cacheManager.Set($"maps:{Name}", $"{_server.IpAddress}:{_server.Port}");
-        await _cacheManager.Publish("maps", $"{Name} {_server.IpAddress}:{_server.Port}");
+        await _cacheManager.Set($"maps:{Name}", $"{_server.AdvertisedIpAddress}:{_server.Port}");
+        await _cacheManager.Publish("maps", $"{Name} {_server.AdvertisedIpAddress}:{_server.Port}");
 
         var loadAttributesTask = _attributeProvider.GetAttributesAsync(Name, Position, Width, Height);
         var loadSpawnPointsTask = _spawnPointProvider.GetSpawnPointsForMap(Name);

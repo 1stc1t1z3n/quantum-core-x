@@ -73,7 +73,8 @@ public class QuickSlotBar : IQuickSlotBar
         await _cacheManager.Set(key, Slots);
         var dbPlayer = await _db.Players
             .Include(x => x.QuickSlots)
-            .FirstAsync(x => x.Id == Player.Player.Id);
+            .FirstOrDefaultAsync(x => x.Id == Player.Player.Id);
+        if (dbPlayer is null) return;
         dbPlayer.QuickSlots.Clear();
         for (var i = 0; i < Slots.Length; i++)
         {

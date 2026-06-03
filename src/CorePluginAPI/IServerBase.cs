@@ -10,6 +10,8 @@ public interface IServerBase
     Task CallListener(IConnection connection, IPacketSerializable packet);
     ServerClock Clock { get; }
     IPAddress IpAddress { get; }
+    IPAddress AdvertisedIpAddress { get; }
     ushort Port { get; }
     void CallConnectionListener(IConnection connection);
+    void ForAllConnections(Action<IConnection> callback);
 }

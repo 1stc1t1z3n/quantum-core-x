@@ -258,13 +258,13 @@ public class OutgoingPacketTests
 
         bytes.Should().Equal(
             new byte[] { 0x15 }
-                .Append((byte)obj.Window)
                 .Concat(BitConverter.GetBytes(obj.Position))
+                .Append((byte)obj.Window)
                 .Concat(BitConverter.GetBytes(obj.ItemId))
                 .Append(obj.Count)
                 .Concat(BitConverter.GetBytes(obj.Flags))
                 .Concat(BitConverter.GetBytes(obj.AntiFlags))
-                .Concat(BitConverter.GetBytes(obj.Highlight))
+                .Append(obj.Highlight)
                 .Concat(obj.Sockets.SelectMany(BitConverter.GetBytes))
                 .Concat(obj.Bonuses.SelectMany(bonus =>
                 {
