@@ -113,4 +113,23 @@ public class ChatManager : IChatManager, ILoadable
         await _cacheManager.Publish("chat",
             new ChatMessage {Type = ChatMessageType.SHOUT, Message = message, OwnerCore = _id});
     }
+
+    public Task Notice(string message, bool big = false)
+    {
+        var chat = new ChatOutcoming
+        {
+            MessageType = big ? ChatMessageType.BIG_NOTICE : ChatMessageType.NOTICE,
+            Vid = 0,
+            Empire = 0,
+            Message = message
+        };
+
+        GameServer.Instance.ForAllConnections(connection =>
+        {
+            if (connection.Phase == EPhase.GAME)
+                connection.Send(chat);
+        });
+
+        return Task.CompletedTask;
+    }
 }
