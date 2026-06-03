@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using QuantumCore.API;
 using QuantumCore.API.Game.Guild;
+using QuantumCore.API.Game.Party;
 using QuantumCore.API.PluginTypes;
 using QuantumCore.Extensions;
 using QuantumCore.Game.Commands;
@@ -41,6 +42,7 @@ public static class ServiceExtensions
             var options = provider.GetRequiredService<IOptions<AuthOptions>>().Value;
             http.BaseAddress = new Uri(options.BaseUrl);
         });
+        services.AddSingleton<IPartyManager, PartyManager>();
         services.AddSingleton<IGuildExperienceManager, GuildExperienceManager>();
         services.AddSingleton<IParserService, ParserService>();
         services.AddSingleton<ISpawnGroupProvider, SpawnGroupProvider>();

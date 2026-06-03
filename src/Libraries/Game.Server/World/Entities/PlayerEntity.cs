@@ -6,6 +6,7 @@ using QuantumCore.API.Core.Models;
 using QuantumCore.API.Core.Timekeeping;
 using QuantumCore.API.Extensions;
 using QuantumCore.API.Game.Guild;
+using QuantumCore.API.Game.Party;
 using QuantumCore.API.Game.Skills;
 using QuantumCore.API.Game.Types;
 using QuantumCore.API.Game.Types.Combat;
@@ -34,6 +35,7 @@ public class PlayerEntity : Entity, IPlayerEntity, IDisposable
     public IGameConnection Connection { get; }
     public PlayerData Player { get; private set; }
     public GuildData? Guild { get; private set; }
+    public PartyData? Party { get; private set; }
     public IInventory Inventory { get; private set; }
     public IList<Guid> Groups { get; private set; }
     public IShop? Shop { get; set; }
@@ -356,6 +358,11 @@ public class PlayerEntity : Entity, IPlayerEntity, IDisposable
         Player.GuildId = Guild?.Id;
         SendGuildInfo();
         SendCharacterUpdate();
+    }
+
+    public void SetParty(PartyData? party)
+    {
+        Party = party;
     }
 
     public void Respawn(bool town)

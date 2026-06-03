@@ -1,4 +1,5 @@
 using QuantumCore.API.Core.Models;
+using QuantumCore.API.Game.Party;
 using QuantumCore.API.Game.Skills;
 using QuantumCore.API.Game.Types.Entities;
 using QuantumCore.API.Game.Types.Items;
@@ -64,5 +65,7 @@ public interface IPlayerEntity : IEntity
     int GetPremiumRemainSeconds(EPremiumType type);
     bool IsUsableSkillMotion(ESkill motion);
     Task RefreshGuildAsync();
+    PartyData? Party { get; }
+    void SetParty(PartyData? party);
     void RecalculateStatusPoints();
 }
