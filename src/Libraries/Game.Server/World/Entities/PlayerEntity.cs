@@ -1269,6 +1269,8 @@ public class PlayerEntity : Entity, IPlayerEntity, IDisposable
         connection.Send(new SpawnCharacter
         {
             Vid = Vid,
+            Level = 0,   // players: level is sent in CharacterInfo, not here
+            AiFlag = 0,
             CharacterType = EEntityType.PLAYER,
             Angle = 0,
             PositionX = PositionX,

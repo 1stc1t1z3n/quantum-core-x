@@ -30,7 +30,5 @@ public class PongHandler : IGamePacketHandler<Pong>
             expiration);
         await _cacheManager.Server.Expire($"token:{activeToken}", expiration);
 
-        // Send a Ping packet to acknowledge the Pong. This won't be responded to with a Pong by the client
-        ctx.Connection.Send(new Ping());
     }
 }

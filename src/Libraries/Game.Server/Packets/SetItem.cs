@@ -8,8 +8,8 @@ namespace QuantumCore.Game.Packets;
 [PacketGenerator]
 public partial class SetItem
 {
-    [Field(0)] public ushort Position { get; set; }
-    [Field(1)] public WindowType Window { get; set; }
+    [Field(0)] public WindowType Window { get; set; }
+    [Field(1)] public ushort Position { get; set; }
     [Field(2)] public uint ItemId { get; set; }
     [Field(3)] public byte Count { get; set; }
     [Field(4)] public uint Flags { get; set; }

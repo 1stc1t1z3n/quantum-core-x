@@ -55,6 +55,8 @@ public class OutgoingPacketTests
         bytes.Should().Equal(
             new byte[] { 0x01 }
                 .Concat(BitConverter.GetBytes(obj.Vid))
+                .Concat(BitConverter.GetBytes(obj.Level))
+                .Concat(BitConverter.GetBytes(obj.AiFlag))
                 .Concat(BitConverter.GetBytes(obj.Angle))
                 .Concat(BitConverter.GetBytes(obj.PositionX))
                 .Concat(BitConverter.GetBytes(obj.PositionY))

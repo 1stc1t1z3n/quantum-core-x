@@ -328,6 +328,8 @@ public class MonsterEntity : Entity
         connection.Send(new SpawnCharacter
         {
             Vid = Vid,
+            Level = Proto.Level,
+            AiFlag = (uint)Proto.AiFlag,
             CharacterType = (EEntityType)Proto.Type,
             Angle = Rotation,
             PositionX = PositionX,
