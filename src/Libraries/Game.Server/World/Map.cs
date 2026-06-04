@@ -328,7 +328,7 @@ public class Map : IMap
         );
 
         var ignoreAttrCheck =
-            (EEntityType)monster.Proto.Type is EEntityType.NPC or EEntityType.WARP or EEntityType.GOTO; // TODO: mining ore
+            (EEntityType)monster.Proto.Type is EEntityType.NPC or EEntityType.WARP or EEntityType.GOTO or EEntityType.METIN_STONE;
 
         var foundValidPositionAttr = ignoreAttrCheck;
 

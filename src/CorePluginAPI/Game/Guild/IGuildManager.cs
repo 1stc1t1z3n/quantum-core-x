@@ -34,4 +34,8 @@ public interface IGuildManager
     /// </summary>
     /// <returns>Simple data of the updated guild to send to the clients</returns>
     Task<GuildData> AddExperienceAsync(uint spenderId, uint amount, CancellationToken token = default);
+
+    void TrackInvite(uint inviteeId, uint guildId, uint inviterId);
+    (bool Exists, uint InviterId) GetPendingInvite(uint inviteeId, uint guildId);
+    void ClearInvite(uint inviteeId);
 }

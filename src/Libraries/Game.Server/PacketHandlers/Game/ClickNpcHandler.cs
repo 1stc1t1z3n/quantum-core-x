@@ -22,6 +22,6 @@ public class ClickNpcHandler : IGamePacketHandler<ClickNpc>
             return;
         }
 
-        await GameEventManager.OnNpcClick(entity.EntityClass, player);
+        await GameEventManager.OnNpcClick(entity.EntityClass, player, entity.Vid);
     }
 }

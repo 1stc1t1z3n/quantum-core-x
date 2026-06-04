@@ -175,7 +175,7 @@ public static class ItemExtensions
             return EquipmentSlot.SHIELD;
         }
 
-        throw new NotImplementedException($"No equipment slot for wear flags: {wearFlags}");
+        return null;
     }
 
     public static async Task<ItemInstance?> GetItem(this IItemRepository repository, ICacheManager cacheManager,
@@ -185,11 +185,20 @@ public static class ItemExtensions
 
         if (await cacheManager.Server.Exists(key) > 0)
         {
-            return await cacheManager.Server.Get<ItemInstance>(key);
+            try
+            {
+                return await cacheManager.Server.Get<ItemInstance>(key);
+            }
+            catch
+            {
+                // Stale or corrupt cache entry — evict and re-populate from DB
+                await cacheManager.Server.Del(key);
+            }
         }
 
         var item = await repository.GetItemAsync(id);
-        await cacheManager.Server.Set(key, item);
+        if (item is not null)
+            await cacheManager.Server.Set(key, item);
         return item;
     }
 
@@ -221,6 +230,11 @@ public static class ItemExtensions
                 if (item is not null)
                 {
                     yield return item;
+                }
+                else
+                {
+                    // Item was deleted from DB — remove stale GUID from the list
+                    await list.Rem(1, id);
                 }
             }
         }

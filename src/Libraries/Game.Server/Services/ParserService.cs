@@ -8,6 +8,7 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
 using QuantumCore.API;
 using QuantumCore.API.Core.Models;
+using QuantumCore.API.Game.Types.Items;
 using QuantumCore.API.Game.Types.Monsters;
 using QuantumCore.API.Game.Types.Skills;
 using QuantumCore.Core.Utils;
@@ -103,6 +104,7 @@ public partial class ParserService : IParserService
                     MaxLevel = short.Parse(split[4]),
                     LevelLimit = short.Parse(split[5]),
                     PointOn = split[6],
+                    PointOnType = Enum.TryParse<EApplyType>(split[6], true, out var apt) ? apt : EApplyType.NONE,
                     PointPoly = split[7],
                     SpCostPoly = split[8],
                     DurationPoly = split[9],
@@ -113,6 +115,7 @@ public partial class ParserService : IParserService
                     Flags = ExtractSkillFlags(split[14]),
                     AffectFlag = ExtractAffectFlags(split[15]),
                     PointOn2 = split[16],
+                    PointOnType2 = Enum.TryParse<EApplyType>(split[16], true, out var apt2) ? apt2 : EApplyType.NONE,
                     PointPoly2 = split[17],
                     DurationPoly2 = split[18],
                     AffectFlag2 = ExtractAffectFlags(split[19]),

@@ -17,7 +17,7 @@ public class TestQuest : Quest
     public override void Init()
     {
         // todo invent api for register npc click event on player
-        GameEventManager.RegisterNpcClickEvent("Test Quest", 20354, Test, player => player.Vid == Player.Vid);
+        GameEventManager.RegisterNpcClickEvent("Test Quest", 20354, (player, _) => Test(player), player => player.Vid == Player.Vid);
         GameEventManager.RegisterNpcGiveEvent("Test Quest", 20016, (player, item) =>
         {
             TestGive(player, item);

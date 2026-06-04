@@ -425,6 +425,7 @@ public class OutgoingPacketTests
                 .Concat(obj.Items.SelectMany(item => Array.Empty<byte>()
                     .Concat(BitConverter.GetBytes(item.ItemId))
                     .Concat(BitConverter.GetBytes(item.Price))
+                    .Concat(BitConverter.GetBytes(item.Cheque))
                     .Append(item.Count)
                     .Append(item.Position)
                     .Concat(item.Sockets.SelectMany(BitConverter.GetBytes))

@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using QuantumCore.API.Game.Types.Items;
 using QuantumCore.API.Game.Types.Skills;
 
 namespace QuantumCore.API.Core.Models;
@@ -13,6 +14,7 @@ public class SkillData
     public short MaxLevel { get; set; }
     public short LevelLimit { get; set; }
     public string PointOn { get; set; } = "0";
+    public EApplyType PointOnType { get; set; } = EApplyType.NONE;
     public string PointPoly { get; set; } = "";
     public string SpCostPoly { get; set; } = "";
     public string DurationPoly { get; set; } = "";
@@ -23,6 +25,7 @@ public class SkillData
     public ESkillFlags Flags { get; set; }
     public EAffectFlags AffectFlag { get; set; } = EAffectFlags.YMIR;
     public string PointOn2 { get; set; } = "None";
+    public EApplyType PointOnType2 { get; set; } = EApplyType.NONE;
     public string PointPoly2 { get; set; } = "";
     public string DurationPoly2 { get; set; } = "";
     public EAffectFlags AffectFlag2 { get; set; } = EAffectFlags.YMIR;

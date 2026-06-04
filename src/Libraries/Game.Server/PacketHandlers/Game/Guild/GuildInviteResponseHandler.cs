@@ -33,7 +33,14 @@ public class GuildInviteResponseHandler : IGamePacketHandler<GuildInviteResponse
             invitee.SendChatInfo("You are already member in the guild.");
             return;
         }
-        // TODO check if player has been invited
+
+        var (inviteExists, inviterId) = _guildManager.GetPendingInvite(invitee.Player.Id, guildId);
+        if (!inviteExists)
+        {
+            invitee.SendChatInfo("You have not been invited to this guild.");
+            return;
+        }
+        _guildManager.ClearInvite(invitee.Player.Id);
 
         if (ctx.Packet.WantsToJoin)
         {
@@ -76,6 +83,10 @@ public class GuildInviteResponseHandler : IGamePacketHandler<GuildInviteResponse
                 });
             }
         }
-        // TODO what to do when rejected?
+        else
+        {
+            var inviter = invitee.Map?.World.GetPlayerById(inviterId);
+            inviter?.SendChatInfo($"{invitee.Player.Name} declined your guild invitation.");
+        }
     }
 }

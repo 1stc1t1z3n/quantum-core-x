@@ -2,5 +2,6 @@
 
 public enum WindowType : byte
 {
-    INVENTORY = 1
+    INVENTORY = 1,
+    EQUIPMENT = 2
 }

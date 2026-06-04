@@ -2,6 +2,7 @@
 using QuantumCore.API;
 using QuantumCore.API.PluginTypes;
 using QuantumCore.Caching;
+using QuantumCore.Core.Event;
 using QuantumCore.Game.Packets;
 using QuantumCore.Networking;
 
@@ -30,5 +31,11 @@ public class PongHandler : IGamePacketHandler<Pong>
             expiration);
         await _cacheManager.Server.Expire($"token:{activeToken}", expiration);
 
+        var connection = ctx.Connection;
+        EventSystem.EnqueueEvent(() =>
+        {
+            connection.Send(new Ping());
+            return TimeSpan.Zero;
+        }, TimeSpan.FromSeconds(NetworkingConstants.PingIntervalInSeconds));
     }
 }

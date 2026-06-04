@@ -75,12 +75,25 @@ public class ItemUseHandler : IGamePacketHandler<ItemUse>
                 {
                     player.RemoveItem(item);
                     player.RemoveItem(item2);
-                    if (await player.Inventory.PlaceItem(item2))
+
+                    // Prefer placing the swapped-out equipment into the source slot.
+                    // If it doesn't fit (size/layout), fall back to any free inventory slot.
+                    var placedItem2 = false;
+                    if (player.IsSpaceAvailable(item2, ctx.Packet.Window, ctx.Packet.Position))
+                    {
+                        player.SetItem(item2, ctx.Packet.Window, ctx.Packet.Position);
+                        placedItem2 = true;
+                    }
+                    else if (await player.Inventory.PlaceItem(item2))
+                    {
+                        placedItem2 = true;
+                    }
+
+                    if (placedItem2)
                     {
                         player.SendRemoveItem(ctx.Packet.Window, (ushort) wearSlot);
                         player.SendRemoveItem(ctx.Packet.Window, ctx.Packet.Position);
                         player.SetItem(item, ctx.Packet.Window, (ushort) wearSlot);
-                        player.SetItem(item2, ctx.Packet.Window, ctx.Packet.Position);
                         player.SendItem(item);
                         player.SendItem(item2);
                     }

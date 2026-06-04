@@ -62,7 +62,7 @@ public class Inventory : IInventory
             var proto = _itemManager.GetItem(item.ItemId);
             if (proto is null) return false;
 
-            var itemSize = proto.Size;
+            var itemSize = Math.Max(proto.Size, (byte)1);
             for (byte i = 0; i < itemSize; i++)
             {
                 _grid.Set(x, y + i, null);
@@ -93,10 +93,10 @@ public class Inventory : IInventory
         {
             var proto = _itemManager.GetItem(item.ItemId);
             if (proto is null) return false;
-            var itemSize = proto.Size;
+            var itemSize = Math.Max(proto.Size, (byte)1);
 
             // Check if all required positions are free and in bounds
-            if (!IsSpaceAvailable(x, y, proto.Size)) return false;
+            if (!IsSpaceAvailable(x, y, itemSize)) return false;
 
             // Place the item
             for (byte i = 0; i < itemSize; i++)
@@ -129,11 +129,12 @@ public class Inventory : IInventory
             var proto = _itemManager.GetItem(item.ItemId);
             if (proto is null) return false;
 
-            return IsSpaceAvailable(x, y, proto.Size);
+            return IsSpaceAvailable(x, y, Math.Max(proto.Size, (byte)1));
         }
 
         public bool IsSpaceAvailable(uint x, uint y, byte size)
         {
+            if (size == 0) size = 1;
             for (byte i = 0; i < size; i++)
             {
                 if (y + i >= _height) return false;

@@ -2,6 +2,7 @@
 using CommandLine;
 using QuantumCore.API.Game;
 using QuantumCore.API.Game.Guild;
+using QuantumCore.Game.Extensions;
 
 namespace QuantumCore.Game.Commands.Guild;
 
@@ -24,9 +25,17 @@ public class GuildDeleteCommand : ICommandHandler<GuildDeleteCommandOptions>
             return;
         }
 
+        var onlineMembers = context.Player.Map?.World
+            .GetGuildMembers(guild.Id)
+            .ToList();
+
         await _guildManager.RemoveGuildAsync(guild.Id);
+
+        if (onlineMembers is not null)
+            foreach (var member in onlineMembers)
+                await member.RefreshGuildAsync();
+
         await context.Player.RefreshGuildAsync();
-        // TODO update all members
     }
 }
 

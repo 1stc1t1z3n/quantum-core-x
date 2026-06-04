@@ -10,7 +10,7 @@ public static class GameEventManager
     {
         public string Name { get; set; }
         public uint NpcId { get; set; }
-        public Func<IPlayerEntity, Task> Callback { get; set; }
+        public Func<IPlayerEntity, uint, Task> Callback { get; set; }
         public Func<IPlayerEntity, bool>? Condition { get; set; }
     }
 
@@ -25,7 +25,7 @@ public static class GameEventManager
     private static readonly Dictionary<uint, List<NpcClickEvent>> NpcClickEvents = new();
     private static readonly Dictionary<uint, List<NpcGiveEvent>> NpcGiveEvents = new();
 
-    public static async Task OnNpcClick(uint npcId, IPlayerEntity player)
+    public static async Task OnNpcClick(uint npcId, IPlayerEntity player, uint entityVid)
     {
         if (!NpcClickEvents.ContainsKey(npcId))
         {
@@ -49,7 +49,7 @@ public static class GameEventManager
                 internalQuest.EndQuest();
             }
 
-            await events[selected].Callback(player);
+            await events[selected].Callback(player, entityVid);
 
             return;
         }
@@ -59,7 +59,7 @@ public static class GameEventManager
             return;
         }
 
-        await events[0].Callback(player);
+        await events[0].Callback(player, entityVid);
     }
 
     public static async Task OnNpcGive(uint npcId, IPlayerEntity player, ItemInstance item)
@@ -96,7 +96,7 @@ public static class GameEventManager
         await events[0].Callback(player, item);
     }
 
-    public static void RegisterNpcClickEvent(string name, uint npcId, Func<IPlayerEntity, Task> callback,
+    public static void RegisterNpcClickEvent(string name, uint npcId, Func<IPlayerEntity, uint, Task> callback,
         Func<IPlayerEntity, bool>? condition = null)
     {
         if (!NpcClickEvents.ContainsKey(npcId))

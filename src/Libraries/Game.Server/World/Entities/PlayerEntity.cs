@@ -90,6 +90,14 @@ public class PlayerEntity : Entity, IPlayerEntity, IDisposable
 
     private uint _defence;
 
+    // Passive skill affect bonuses: EApplyType → bonus value (for client AffectAdd)
+    private readonly Dictionary<EApplyType, int> _passiveAffectBonuses = new();
+
+    // Client slot model: 4 inventory pages (4 * 45 = 180), then equipment slots.
+    private const ushort CLIENT_INVENTORY_PAGE_COUNT = 4;
+    private const ushort CLIENT_INVENTORY_PAGE_SIZE = InventoryConstants.DEFAULT_INVENTORY_WIDTH * InventoryConstants.DEFAULT_INVENTORY_HEIGHT;
+    private const ushort CLIENT_EQUIPMENT_START = CLIENT_INVENTORY_PAGE_COUNT * CLIENT_INVENTORY_PAGE_SIZE;
+
     private const int PERSIST_INTERVAL = 30 * 1000; // 30s
     private ServerTimestamp? _lastPersistTime;
     private const int HEALTH_REGEN_INTERVAL = 3 * 1000;
@@ -731,8 +739,48 @@ public class PlayerEntity : Entity, IPlayerEntity, IDisposable
         switch (point)
         {
             case EPoint.LEVEL:
-                var currentLevel = GetPoint(EPoint.LEVEL);
-                LevelUp((int)(value - currentLevel));
+                var targetLevel = Math.Max((uint)1, value);
+
+                if (_experienceManager.MaxLevel > 0)
+                {
+                    targetLevel = Math.Min(targetLevel, _experienceManager.MaxLevel);
+                }
+
+                if (targetLevel == Player.Level)
+                {
+                    break;
+                }
+
+                if (_experienceManager.MaxLevel == 0)
+                {
+                    // Fallback for setups without exp.csv: allow explicit GM level assignment.
+                    Player.Level = (byte)targetLevel;
+                    RecalculateStatusPoints();
+                }
+                else if (targetLevel > Player.Level)
+                {
+                    LevelUp((int)(targetLevel - Player.Level));
+                }
+                else
+                {
+                    Player.Level = (byte)targetLevel;
+                    RecalculateStatusPoints();
+                }
+
+                Player.MaxHp = GetMaxHp(_jobManager, Player.PlayerClass, Player.Level, Player.Ht);
+                Player.MaxSp = GetMaxSp(_jobManager, Player.PlayerClass, Player.Level, Player.Iq);
+
+                if (Health > Player.MaxHp)
+                {
+                    Health = (int)Player.MaxHp;
+                }
+
+                if (Mana > Player.MaxSp)
+                {
+                    Mana = (int)Player.MaxSp;
+                }
+
+                SendCharacterUpdate();
                 break;
             case EPoint.EXPERIENCE:
                 Player.Experience = value;
@@ -848,6 +896,34 @@ public class PlayerEntity : Entity, IPlayerEntity, IDisposable
                 return Player.AvailableSkillPoints;
             case EPoint.SUB_SKILL:
                 return 1;
+            case EPoint.SKILL_DAMAGE_BONUS:
+            case EPoint.NORMAL_HIT_DAMAGE_BONUS:
+            case EPoint.SKILL_DEFEND_BONUS:
+            case EPoint.NORMAL_HIT_DEFEND_BONUS:
+            case EPoint.MAGIC_ATTACK_BONUS:
+            case EPoint.RESIST_DAGGER:
+            case EPoint.RESIST_BELL:
+            case EPoint.RESIST_FAN:
+            case EPoint.RESIST_BOW:
+            case EPoint.RESIST_FIRE:
+            case EPoint.RESIST_ELECTRIC:
+            case EPoint.RESIST_MAGIC:
+            case EPoint.RESIST_WIND:
+            case EPoint.ITEM_DROP_BONUS:
+            case EPoint.ATTACK_BONUS:
+            case EPoint.DEFENCE_BONUS:
+            case EPoint.HORSE_SKILL:
+            case EPoint.MALL_ATT_BONUS:
+            case EPoint.MALL_DEF_BONUS:
+            case EPoint.MALL_EXP_BONUS:
+            case EPoint.MALL_ITEM_BONUS:
+            case EPoint.MALL_GOLD_BONUS:
+            case EPoint.RESIST_ICE:
+            case EPoint.RESIST_EARTH:
+            case EPoint.RESIST_DARK:
+            case EPoint.RESIST_CRITICAL:
+            case EPoint.RESIST_PENETRATE:
+                return 0;
             default:
                 if (Enum.GetValues<EPoint>().Contains(point))
                 {
@@ -1046,19 +1122,16 @@ public class PlayerEntity : Entity, IPlayerEntity, IDisposable
 
     public ItemInstance? GetItem(WindowType window, ushort position)
     {
+        (window, position) = GetInternalItemPos(window, position);
+
         switch (window)
         {
             case WindowType.INVENTORY:
                 if (position >= Inventory.Size)
-                {
-                    // Equipment
                     return Inventory.EquipmentWindow.GetItem(position);
-                }
-                else
-                {
-                    // Inventory
-                    return Inventory.GetItem(position);
-                }
+                return Inventory.GetItem(position);
+            case WindowType.EQUIPMENT:
+                return Inventory.EquipmentWindow.GetItem((EquipmentSlot)position);
         }
 
         return null;
@@ -1066,6 +1139,8 @@ public class PlayerEntity : Entity, IPlayerEntity, IDisposable
 
     public bool IsSpaceAvailable(ItemInstance item, WindowType window, ushort position)
     {
+        (window, position) = GetInternalItemPos(window, position);
+
         switch (window)
         {
             case WindowType.INVENTORY:
@@ -1171,6 +1246,8 @@ public class PlayerEntity : Entity, IPlayerEntity, IDisposable
 
     public void SetItem(ItemInstance item, WindowType window, ushort position)
     {
+        (window, position) = GetInternalItemPos(window, position);
+
         switch (window)
         {
             case WindowType.INVENTORY:
@@ -1191,7 +1268,12 @@ public class PlayerEntity : Entity, IPlayerEntity, IDisposable
                 else
                 {
                     // Inventory
-                    Inventory.PlaceItem(item, position);
+                    var placed = Inventory.PlaceItem(item, position).Result;
+                    if (!placed)
+                    {
+                        _logger.LogWarning("Failed to place item {ItemId} in inventory slot {Position}", item.ItemId,
+                            position);
+                    }
                 }
 
                 break;
@@ -1247,6 +1329,16 @@ public class PlayerEntity : Entity, IPlayerEntity, IDisposable
         Connection.Send(points);
     }
 
+    public void ClearPassiveAffectBonuses() => _passiveAffectBonuses.Clear();
+
+    public void AddPassiveAffectBonus(EApplyType type, int value)
+    {
+        _passiveAffectBonuses[type] = _passiveAffectBonuses.GetValueOrDefault(type, 0) + value;
+    }
+
+    public int GetPassiveAffectBonus(EApplyType type) =>
+        _passiveAffectBonuses.GetValueOrDefault(type, 0);
+
     public void SendInventory()
     {
         foreach (var item in Inventory.Items)
@@ -1261,16 +1353,49 @@ public class PlayerEntity : Entity, IPlayerEntity, IDisposable
     {
         Debug.Assert(item.PlayerId == Player.Id);
 
-        var p = new SetItem
-        {
-            Window = item.Window, Position = (ushort)item.Position, ItemId = item.ItemId, Count = item.Count
-        };
+        var (window, position) = GetClientItemPos(item.Window, item.Position);
+        var p = new SetItem { Window = window, Position = position, ItemId = item.ItemId, Count = item.Count };
         Connection.Send(p);
     }
 
     public void SendRemoveItem(WindowType window, ushort position)
     {
-        Connection.Send(new SetItem {Window = window, Position = position, ItemId = 0, Count = 0});
+        var (internalWindow, internalPosition) = GetInternalItemPos(window, position);
+        var (clientWindow, clientPosition) = GetClientItemPos(internalWindow, internalPosition);
+        Connection.Send(new SetItem { Window = clientWindow, Position = clientPosition, ItemId = 0, Count = 0 });
+    }
+
+    private (WindowType window, ushort position) GetClientItemPos(WindowType internalWindow, long internalPosition)
+    {
+        if (internalWindow == WindowType.EQUIPMENT)
+            return (WindowType.INVENTORY, (ushort)(CLIENT_EQUIPMENT_START + internalPosition));
+
+        if (internalWindow == WindowType.INVENTORY && internalPosition >= Inventory.Size)
+            return (WindowType.INVENTORY, (ushort)(CLIENT_EQUIPMENT_START + (internalPosition - Inventory.Size)));
+
+        return (internalWindow, (ushort)internalPosition);
+    }
+
+    private (WindowType window, ushort position) GetInternalItemPos(WindowType clientWindow, ushort clientPosition)
+    {
+        if (clientWindow == WindowType.INVENTORY)
+        {
+            if (clientPosition >= CLIENT_EQUIPMENT_START)
+                return (WindowType.INVENTORY, (ushort)(Inventory.Size + (clientPosition - CLIENT_EQUIPMENT_START)));
+
+            return (WindowType.INVENTORY, clientPosition);
+        }
+
+        if (clientWindow == WindowType.EQUIPMENT)
+        {
+            // Some client code paths use EQUIPMENT with relative slot ids, others with absolute c_Equipment_* ids.
+            if (clientPosition >= CLIENT_EQUIPMENT_START)
+                return (WindowType.INVENTORY, (ushort)(Inventory.Size + (clientPosition - CLIENT_EQUIPMENT_START)));
+
+            return (WindowType.INVENTORY, (ushort)(Inventory.Size + clientPosition));
+        }
+
+        return (clientWindow, clientPosition);
     }
 
     public void SendCharacter(IConnection connection)

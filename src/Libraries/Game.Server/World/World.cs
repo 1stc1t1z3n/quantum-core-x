@@ -124,9 +124,9 @@ public class World : IWorld, ILoadable
                 shop.AddItem(item.Item, item.Amount, itemData.BuyPrice);
             }
 
-            GameEventManager.RegisterNpcClickEvent(shop.Name, shopDef.Monster, player =>
+            GameEventManager.RegisterNpcClickEvent(shop.Name, shopDef.Monster, (player, npcVid) =>
             {
-                shop.Open(player);
+                shop.Open(player, npcVid);
                 return Task.CompletedTask;
             });
         }

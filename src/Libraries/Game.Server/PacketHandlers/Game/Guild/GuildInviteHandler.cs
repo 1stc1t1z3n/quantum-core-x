@@ -61,7 +61,7 @@ public class GuildInviteHandler : IGamePacketHandler<GuildInviteIncoming>
                 return;
         }
 
-        // TODO track invite
+        _guildManager.TrackInvite(invitee.Player.Id, guildId, inviter.Player.Id);
 
         invitee.Connection.Send(new GuildInviteOutgoing
         {

@@ -64,7 +64,6 @@ public class CachePlayerRepository : ICachePlayerRepository
             }
         }
 
-        // TODO delete items from players inventory
         key = $"items:{player.Id}:{(byte)WindowType.INVENTORY}";
         await _cacheManager.Del(key);
     }

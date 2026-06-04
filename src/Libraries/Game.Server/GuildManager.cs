@@ -1,4 +1,5 @@
-﻿using System.Collections.Immutable;
+﻿using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using EnumsNET;
 using Microsoft.EntityFrameworkCore;
 using QuantumCore.API;
@@ -15,6 +16,7 @@ public class GuildManager : IGuildManager
 {
     private readonly GameDbContext _db;
     private readonly IGuildExperienceManager _experienceManager;
+    private readonly ConcurrentDictionary<uint, (uint GuildId, uint InviterId)> _pendingInvites = new();
 
     public GuildManager(GameDbContext db, IGuildExperienceManager experienceManager)
     {
@@ -243,4 +245,17 @@ public class GuildManager : IGuildManager
         // TODO improve
         return (await GetGuildByIdAsync(member.GuildId, token))!;
     }
+
+    public void TrackInvite(uint inviteeId, uint guildId, uint inviterId)
+        => _pendingInvites[inviteeId] = (guildId, inviterId);
+
+    public (bool Exists, uint InviterId) GetPendingInvite(uint inviteeId, uint guildId)
+    {
+        if (_pendingInvites.TryGetValue(inviteeId, out var invite) && invite.GuildId == guildId)
+            return (true, invite.InviterId);
+        return (false, 0);
+    }
+
+    public void ClearInvite(uint inviteeId)
+        => _pendingInvites.TryRemove(inviteeId, out _);
 }

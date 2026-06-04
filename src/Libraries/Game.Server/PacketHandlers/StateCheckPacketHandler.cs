@@ -15,7 +15,7 @@ public class StateCheckPacketHandler : IGamePacketHandler<StateCheckPacket>
             {
                 new ServerStatus
                 {
-                    Port = 13001,       // TODO: this should be based on `Hosting:Port` config
+                    Port = (short)ctx.Connection.Server.Port,
                     Status = EServerStatus.ONLINE
                 }
             },

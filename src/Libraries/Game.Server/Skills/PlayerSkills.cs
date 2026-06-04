@@ -8,9 +8,11 @@ using QuantumCore.API.Extensions;
 using QuantumCore.API.Game.Skills;
 using QuantumCore.API.Game.Types.Entities;
 using QuantumCore.API.Game.Types.Players;
+using QuantumCore.API.Game.Types.Items;
 using QuantumCore.API.Game.Types.Skills;
 using QuantumCore.Core.Utils;
 using QuantumCore.Game.Extensions;
+using QuantumCore.Game.Packets;
 using QuantumCore.Game.Packets.Skills;
 using QuantumCore.Game.Persistence;
 using QuantumCore.Game.World.Entities;
@@ -407,6 +409,11 @@ public class PlayerSkills : IPlayerSkills
         _logger.LogInformation("Skill up: {SkillId} ({Name}) [{Master}] -> {Level} ({LevelName})", proto.Id, proto.Name,
             skill.MasterType, (byte)GetSkillLevel(proto.Id), GetSkillLevel(proto.Id).GetName());
 
+        if (proto.Type == ESkillCategoryType.PASSIVE_SKILLS)
+        {
+            ApplyPassiveAffects();
+        }
+
         _player.SendPoints();
         SendSkillLevelsPacket();
     }
@@ -495,6 +502,77 @@ public class PlayerSkills : IPlayerSkills
     public void Send()
     {
         SendSkillLevelsPacket();
+        ApplyPassiveAffects();
+    }
+
+    public void ApplyPassiveAffects()
+    {
+        _player.ClearPassiveAffectBonuses();
+
+        foreach (var skillId in PassiveSkillIds)
+        {
+            if (!_skills.TryGetValue(skillId, out var skill)) continue;
+            if (skill.Level == ESkillLevel.UNLEARNED) continue;
+
+            var proto = _skillManager.GetSkill(skillId);
+            if (proto is null) continue;
+
+            var level = (int)skill.Level;
+            SendAffect(proto.AffectFlag, proto.PointOnType, proto.PointPoly, level);
+            SendAffect(proto.AffectFlag2, proto.PointOnType2, proto.PointPoly2, level);
+        }
+    }
+
+    private void SendAffect(EAffectFlags affectFlag, EApplyType applyOn, string poly, int level)
+    {
+        if (applyOn == EApplyType.NONE) return;
+        var value = EvaluatePoly(poly, level);
+        if (value == 0) return;
+
+        _player.AddPassiveAffectBonus(applyOn, value);
+        _player.Connection.Send(new AffectAdd
+        {
+            Type = (uint)affectFlag,
+            PointApplyOn = (byte)applyOn,
+            ApplyValue = value,
+            Flag = 0,
+            Duration = -1,
+            SpCost = 0
+        });
+    }
+
+    private static int EvaluatePoly(string poly, int level)
+    {
+        if (string.IsNullOrEmpty(poly)) return 0;
+        var s = poly.Trim().ToLowerInvariant().Replace(" ", "");
+        if (s is "" or "0" or "none") return 0;
+        if (int.TryParse(s, out var constant)) return constant;
+
+        // Replace skill-level variable 'k' with numeric value, then evaluate
+        s = s.Replace("k", level.ToString());
+        return EvalExpr(s);
+    }
+
+    private static int EvalExpr(string s)
+    {
+        s = s.Trim();
+        // Find rightmost + or - (handles left-to-right precedence for add/sub)
+        for (var i = s.Length - 1; i > 0; i--)
+        {
+            if (s[i] == '+') return EvalExpr(s[..i]) + EvalExpr(s[(i + 1)..]);
+            if (s[i] == '-') return EvalExpr(s[..i]) - EvalExpr(s[(i + 1)..]);
+        }
+        // Find rightmost * or /
+        for (var i = s.Length - 1; i > 0; i--)
+        {
+            if (s[i] == '*') return EvalExpr(s[..i]) * EvalExpr(s[(i + 1)..]);
+            if (s[i] == '/')
+            {
+                var divisor = EvalExpr(s[(i + 1)..]);
+                return divisor == 0 ? 0 : EvalExpr(s[..i]) / divisor;
+            }
+        }
+        return int.TryParse(s, out var v) ? v : 0;
     }
 
     public bool LearnSkillByBook(ESkill skillId)

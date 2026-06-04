@@ -36,7 +36,8 @@ public class GuildRankChangeHandler : IGamePacketHandler<GuildRankChangePacket>
 
         var guildId = ctx.Connection.Player!.Player.GuildId.Value;
         await _guildManager.ChangePermissionAsync(guildId, ctx.Packet.Position, ctx.Packet.Permission, token);
-        ctx.Connection.SendGuildRankPermissions(ctx.Packet.Position, ctx.Packet.Permission);
-        // TODO send to all guild members
+
+        foreach (var member in ctx.Connection.Player!.Map!.World.GetGuildMembers(guildId))
+            member.Connection.SendGuildRankPermissions(ctx.Packet.Position, ctx.Packet.Permission);
     }
 }

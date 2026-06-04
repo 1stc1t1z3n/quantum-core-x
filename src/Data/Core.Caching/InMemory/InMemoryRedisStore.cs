@@ -130,7 +130,7 @@ public class InMemoryRedisStore : IRedisStore
     public ValueTask<string[]> Keys(string key)
     {
         var regex = RedisPatternToRegex(key);
-        var matchedKeys = _dict.Keys.Where(x => regex.IsMatch(key)).ToArray();
+        var matchedKeys = _dict.Keys.Where(x => regex.IsMatch(x)).ToArray();
         return ValueTask.FromResult(matchedKeys);
     }
 
@@ -185,7 +185,7 @@ public class InMemoryRedisStore : IRedisStore
             currentIndex = asterixIndex + 1;
         }
 
-        if (currentIndex < key.Length - 1)
+        if (currentIndex < key.Length)
         {
             regexPattern.Append(Regex.Escape($"{key[currentIndex..]}"));
         }

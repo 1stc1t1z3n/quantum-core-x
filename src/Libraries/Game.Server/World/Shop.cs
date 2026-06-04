@@ -60,7 +60,7 @@ public class Shop : IShop
         _grid.SetBlock((uint) x, (uint) y, 1, proto.Size, item);
     }
 
-    public void Open(IPlayerEntity player)
+    public void Open(IPlayerEntity player, uint npcVid)
     {
         if (player is not PlayerEntity p)
         {
@@ -70,7 +70,7 @@ public class Shop : IShop
         p.Shop = this;
         Visitors.Add(p);
 
-        var shopStart = new ShopOpen {Vid = Vid};
+        var shopStart = new ShopOpen { Vid = npcVid };
         foreach (var item in _items)
         {
             // For some reason the item also contains the position while the client uses the array index as position
