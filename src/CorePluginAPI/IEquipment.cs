@@ -14,6 +14,7 @@ public interface IEquipment
     ItemInstance? Weapon { get; }
     ItemInstance? Necklace { get; }
     ItemInstance? Earrings { get; }
+    ItemInstance? Shield { get; }
     ItemInstance? Costume { get; }
     ItemInstance? Hair { get; }
     bool SetItem(ItemInstance item);

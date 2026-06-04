@@ -216,41 +216,61 @@ public static class ItemExtensions
         ICacheManager cacheManager, uint player, WindowType window)
     {
         var key = "items:" + player + ":" + (byte)window;
-
         var list = cacheManager.Server.CreateList<Guid>(key);
 
-        // Check if the window list exists
+        // Fast path: use cached list if entries are internally consistent.
         if (await cacheManager.Server.Exists(key) > 0)
         {
-            var itemIds = await list.Range(0, -1);
+            var cachedIds = (await list.Range(0, -1)).ToArray();
+            var cacheInvalid = cachedIds.Length == 0;
+            var seenIds = new HashSet<Guid>();
+            var cachedItems = new List<ItemInstance>(cachedIds.Length);
 
-            foreach (var id in itemIds)
+            foreach (var id in cachedIds)
             {
+                if (!seenIds.Add(id))
+                {
+                    cacheInvalid = true;
+                    continue;
+                }
+
                 var item = await GetItem(repository, cacheManager, id);
-                if (item is not null)
+                if (item is null || item.PlayerId != player || item.Window != window)
+                {
+                    cacheInvalid = true;
+                    continue;
+                }
+
+                cachedItems.Add(item);
+            }
+
+            if (!cacheInvalid)
+            {
+                foreach (var item in cachedItems)
                 {
                     yield return item;
                 }
-                else
-                {
-                    // Item was deleted from DB — remove stale GUID from the list
-                    await list.Rem(1, id);
-                }
+
+                yield break;
             }
         }
-        else
+
+        // Guardrail: if cache is stale/partial, rebuild the list from DB source-of-truth.
+        var ids = (await repository.GetItemIdsForPlayerAsync(player, window)).ToArray();
+
+        await cacheManager.Server.Del(key);
+        list = cacheManager.Server.CreateList<Guid>(key);
+        foreach (var id in ids)
         {
-            var ids = await repository.GetItemIdsForPlayerAsync(player, window);
+            await list.Push(id);
+        }
 
-            foreach (var id in ids)
+        foreach (var id in ids)
+        {
+            var item = await GetItem(repository, cacheManager, id);
+            if (item is not null)
             {
-                await list.Push(id);
-
-                var item = await GetItem(repository, cacheManager, id);
-                if (item is not null)
-                {
-                    yield return item;
-                }
+                yield return item;
             }
         }
     }
@@ -285,6 +305,8 @@ public static class ItemExtensions
     public static async Task Set(this ItemInstance item, ICacheManager cacheManager, uint owner, WindowType window,
         uint pos, IItemRepository itemRepository)
     {
+        var previousOwner = item.PlayerId;
+        var previousWindow = item.Window;
         var isPlayerDifferent = item.PlayerId != owner;
         var isWindowDifferent = item.Window != window;
 
@@ -295,17 +317,39 @@ public static class ItemExtensions
 
         if (isPlayerDifferent || isWindowDifferent)
         {
-            if (item.PlayerId != default)
+            if (previousOwner != default)
             {
-                // Remove from last list
-                var oldList = cacheManager.Server.CreateList<Guid>($"items:{item.PlayerId}:{item.Window}");
-                await oldList.Rem(1, item.Id);
+                // Remove from last list if that cache key exists.
+                var oldKey = $"items:{previousOwner}:{previousWindow}";
+                if (await cacheManager.Server.Exists(oldKey) > 0)
+                {
+                    var oldList = cacheManager.Server.CreateList<Guid>(oldKey);
+                    await oldList.Rem(1, item.Id);
+                }
             }
 
             if (owner != default)
             {
-                var newList = cacheManager.Server.CreateList<Guid>($"items:{owner}:{window}");
-                await newList.Push(item.Id);
+                // Only mutate existing list cache.
+                // Creating a new list here with a single item can hide other items until next rebuild.
+                var newKey = $"items:{owner}:{window}";
+                if (await cacheManager.Server.Exists(newKey) > 0)
+                {
+                    var newList = cacheManager.Server.CreateList<Guid>(newKey);
+                    await newList.Rem(1, item.Id);
+                    await newList.Push(item.Id);
+                }
+            }
+        }
+        else if (owner != default)
+        {
+            // Same owner/window move: ensure membership only if list cache already exists.
+            var currentKey = $"items:{owner}:{window}";
+            if (await cacheManager.Server.Exists(currentKey) > 0)
+            {
+                var currentList = cacheManager.Server.CreateList<Guid>(currentKey);
+                await currentList.Rem(1, item.Id);
+                await currentList.Push(item.Id);
             }
         }
     }

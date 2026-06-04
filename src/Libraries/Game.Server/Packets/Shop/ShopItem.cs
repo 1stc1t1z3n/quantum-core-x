@@ -7,7 +7,7 @@ public class ShopItem
 {
     [Field(0)] public uint ItemId { get; set; }
 
-    [Field(1)] public uint Price { get; set; }
+    [Field(1)] public ulong Price { get; set; }
 
     // ENABLE_CHEQUE_SYSTEM adds DWORD cheque between price and count
     [Field(2)] public uint Cheque { get; set; }

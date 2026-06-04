@@ -16,6 +16,7 @@ public class Equipment : IEquipment
     public ItemInstance? Weapon { get; private set; }
     public ItemInstance? Necklace { get; private set; }
     public ItemInstance? Earrings { get; private set; }
+    public ItemInstance? Shield { get; private set; }
     public ItemInstance? Costume { get; private set; }
     public ItemInstance? Hair { get; private set; }
 
@@ -57,6 +58,9 @@ public class Equipment : IEquipment
             case EquipmentSlot.EARRING:
                 Earrings = item;
                 return true;
+            case EquipmentSlot.SHIELD:
+                Shield = item;
+                return true;
             case EquipmentSlot.COSTUME:
                 Costume = item;
                 return true;
@@ -86,6 +90,8 @@ public class Equipment : IEquipment
                 return Necklace;
             case EquipmentSlot.EARRING:
                 return Earrings;
+            case EquipmentSlot.SHIELD:
+                return Shield;
             case EquipmentSlot.COSTUME:
                 return Costume;
             case EquipmentSlot.HAIR:
@@ -124,6 +130,9 @@ public class Equipment : IEquipment
                 return true;
             case EquipmentSlot.EARRING:
                 Earrings = null;
+                return true;
+            case EquipmentSlot.SHIELD:
+                Shield = null;
                 return true;
             case EquipmentSlot.COSTUME:
                 Costume = null;
@@ -173,6 +182,11 @@ public class Equipment : IEquipment
             player.SendItem(Earrings);
         }
 
+        if (Shield is not null)
+        {
+            player.SendItem(Shield);
+        }
+
         if (Costume is not null)
         {
             player.SendItem(Costume);
@@ -210,6 +224,8 @@ public class Equipment : IEquipment
                 return wearFlags.HasFlag(EWearFlags.NECKLACE);
             case EquipmentSlot.EARRING:
                 return wearFlags.HasFlag(EWearFlags.EARRINGS);
+            case EquipmentSlot.SHIELD:
+                return wearFlags.HasFlag(EWearFlags.SHIELD);
             case EquipmentSlot.COSTUME:
                 return proto.IsType(EItemType.COSTUME) && proto.IsSubtype(EItemSubtype.COSTUME_BODY);
             case EquipmentSlot.HAIR:
