@@ -6,6 +6,7 @@ using QuantumCore.API.Game.Types.Skills;
 namespace QuantumCore.Game.Commands;
 
 [Command("skillup", "Levels up a skill")]
+[CommandNoPermission]
 public class SkillUpCommand : ICommandHandler<SkillUpCommandOptions>
 {
     private readonly ILogger<SkillUpCommand> _logger;

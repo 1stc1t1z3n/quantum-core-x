@@ -487,6 +487,11 @@ public class PlayerEntity : Entity, IPlayerEntity, IDisposable
 
         Player.Level = (byte)(Player.Level + level);
 
+        if (Player.Level >= PlayerSkills.MINIMUM_LEVEL && (byte)Player.SkillGroup == 0)
+        {
+            SendChatInfo("You can now choose your skill path! Open the Skill window (K) and pick Group 1 or Group 2.");
+        }
+
         // todo: animation (I think this actually is a quest sent by the server on character login and not an actual packet at this stage)
 
         foreach (var entity in NearbyEntities)
