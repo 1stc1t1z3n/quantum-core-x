@@ -11,5 +11,6 @@ public interface IGameConnection : IConnection
     Guid? AccountId { get; set; }
     string Username { get; set; }
     IPlayerEntity? Player { get; set; }
+    string Locale { get; set; }
     bool HandleHandshake(GcHandshakeData handshake);
 }

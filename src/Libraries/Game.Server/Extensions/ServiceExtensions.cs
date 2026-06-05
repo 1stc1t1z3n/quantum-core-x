@@ -42,6 +42,7 @@ public static class ServiceExtensions
             var options = provider.GetRequiredService<IOptions<AuthOptions>>().Value;
             http.BaseAddress = new Uri(options.BaseUrl);
         });
+        services.AddSingleton<INpcTranslationManager, NpcTranslationManager>();
         services.AddSingleton<IPartyManager, PartyManager>();
         services.AddSingleton<IGuildExperienceManager, GuildExperienceManager>();
         services.AddSingleton<IParserService, ParserService>();

@@ -341,10 +341,13 @@ public class MonsterEntity : Entity
 
         if (Proto.Type == (byte)EEntityType.NPC)
         {
-            // NPCs need additional information too to show up for some reason
+            var locale = (connection as IGameConnection)?.Locale ?? "en";
+            var translations = _serviceProvider.GetRequiredService<INpcTranslationManager>();
+            var name = translations.GetName(Proto.Id, locale) ?? Proto.TranslatedName;
+
             connection.Send(new CharacterInfo
             {
-                Vid = Vid, Empire = Proto.Empire, Level = 0, Name = Proto.TranslatedName
+                Vid = Vid, Empire = Proto.Empire, Level = 0, Name = name
             });
         }
     }

@@ -21,6 +21,7 @@ public class GameConnection : Connection, IGameConnection
     public Guid? AccountId { get; set; }
     public string Username { get; set; } = "";
     public IPlayerEntity? Player { get; set; }
+    public string Locale { get; set; } = "en";
 
 
     public GameConnection(IServerBase server, TcpClient client, ILogger<GameConnection> logger,
