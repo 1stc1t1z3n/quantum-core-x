@@ -15,6 +15,7 @@ public interface IItemRepository
     Task<ItemInstance?> GetItemAsync(Guid id);
     Task DeletePlayerItemsAsync(uint playerId);
     Task DeletePlayerItemAsync(uint playerId, uint itemId);
+    Task DeleteItemAsync(Guid id);
     Task SaveItemAsync(ItemInstance item);
 }
 
@@ -53,6 +54,11 @@ public class ItemRepository : IItemRepository
     public async Task DeletePlayerItemAsync(uint playerId, uint itemId)
     {
         await _db.Items.Where(x => x.PlayerId == playerId && x.ItemId == itemId).ExecuteDeleteAsync();
+    }
+
+    public async Task DeleteItemAsync(Guid id)
+    {
+        await _db.Items.Where(x => x.Id == id).ExecuteDeleteAsync();
     }
 
     public async Task SaveItemAsync(ItemInstance item)

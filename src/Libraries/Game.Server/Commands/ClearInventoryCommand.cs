@@ -2,6 +2,7 @@ using QuantumCore.API.Core.Models;
 using QuantumCore.API.Game;
 using QuantumCore.Caching;
 using QuantumCore.Game.Extensions;
+using QuantumCore.Game.Persistence;
 
 namespace QuantumCore.Game.Commands;
 
@@ -10,10 +11,12 @@ namespace QuantumCore.Game.Commands;
 public class ClearInventoryCommand : ICommandHandler
 {
     private readonly ICacheManager _cacheManager;
+    private readonly IItemRepository _itemRepository;
 
-    public ClearInventoryCommand(ICacheManager cacheManager)
+    public ClearInventoryCommand(ICacheManager cacheManager, IItemRepository itemRepository)
     {
         _cacheManager = cacheManager;
+        _itemRepository = itemRepository;
     }
 
     public async Task ExecuteAsync(CommandContext ctx)
@@ -35,7 +38,7 @@ public class ClearInventoryCommand : ICommandHandler
         {
             ctx.Player.RemoveItem(item);
             ctx.Player.SendRemoveItem(item.Window, (ushort)item.Position);
-            await item.Destroy(_cacheManager);
+            await item.Destroy(_cacheManager, _itemRepository);
         }
 
         ctx.Player.SendInventory();

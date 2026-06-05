@@ -275,7 +275,8 @@ public static class ItemExtensions
         }
     }
 
-    public static async Task<bool> Destroy(this ItemInstance item, ICacheManager cacheManager)
+    public static async Task<bool> Destroy(this ItemInstance item, ICacheManager cacheManager,
+        IItemRepository itemRepository)
     {
         var key = "item:" + item.Id;
 
@@ -285,7 +286,9 @@ public static class ItemExtensions
             await oldList.Rem(1, item.Id);
         }
 
-        return await cacheManager.Server.Del(key) != 0;
+        await cacheManager.Server.Del(key);
+        await itemRepository.DeleteItemAsync(item.Id);
+        return true;
     }
 
     public static Task Persist(this ItemInstance item, IItemRepository itemRepository)

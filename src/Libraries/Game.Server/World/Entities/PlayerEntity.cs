@@ -1210,7 +1210,7 @@ public class PlayerEntity : Entity, IPlayerEntity, IDisposable
     public bool DestroyItem(ItemInstance item)
     {
         RemoveItem(item);
-        if (!item.Destroy(_cacheManager).Result) // TODO
+        if (!item.Destroy(_cacheManager, _itemRepository).Result) // TODO
         {
             return false;
         }
