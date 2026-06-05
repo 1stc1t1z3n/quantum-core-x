@@ -15,7 +15,7 @@ public static class InventoryConstants
 {
     public const ushort DEFAULT_INVENTORY_WIDTH = 5;
     public const ushort DEFAULT_INVENTORY_HEIGHT = 9;
-    public const ushort DEFAULT_INVENTORY_PAGES = 2;
+    public const ushort DEFAULT_INVENTORY_PAGES = 4;
 }
 
 public class Inventory : IInventory
