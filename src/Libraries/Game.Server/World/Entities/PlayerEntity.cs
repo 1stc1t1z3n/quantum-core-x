@@ -1262,7 +1262,13 @@ public class PlayerEntity : Entity, IPlayerEntity, IDisposable
                     if (Inventory.EquipmentWindow.GetItem(position) is null)
                     {
                         Inventory.SetEquipment(item, position);
-                        item.Set(_cacheManager, Player.Id, window, position, _itemRepository).Wait(); // TODO
+                        try
+                        {
+                            item.Set(_cacheManager, Player.Id, window, position, _itemRepository)
+                                .ConfigureAwait(false).GetAwaiter().GetResult();
+                        }
+                        catch (ObjectDisposedException) { /* Connection closed before persist completed */ }
+                        catch (OperationCanceledException) { /* Connection closed before persist completed */ }
                         CalculateDefence();
                         CalculateMovement();
                         CalculateAttackSpeed();
@@ -1273,7 +1279,14 @@ public class PlayerEntity : Entity, IPlayerEntity, IDisposable
                 else
                 {
                     // Inventory
-                    var placed = Inventory.PlaceItem(item, position).Result;
+                    bool placed;
+                    try
+                    {
+                        placed = Inventory.PlaceItem(item, position)
+                            .ConfigureAwait(false).GetAwaiter().GetResult();
+                    }
+                    catch (ObjectDisposedException) { break; }
+                    catch (OperationCanceledException) { break; }
                     if (!placed)
                     {
                         _logger.LogWarning("Failed to place item {ItemId} in inventory slot {Position}", item.ItemId,
