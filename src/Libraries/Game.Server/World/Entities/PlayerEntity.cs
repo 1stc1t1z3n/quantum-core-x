@@ -17,6 +17,7 @@ using QuantumCore.API.Game.Types.Players;
 using QuantumCore.API.Game.Types.Skills;
 using QuantumCore.API.Game.World;
 using QuantumCore.Caching;
+using QuantumCore.Core.Event;
 using QuantumCore.Extensions;
 using QuantumCore.Game.Extensions;
 using QuantumCore.Game.Packets;
@@ -90,8 +91,53 @@ public class PlayerEntity : Entity, IPlayerEntity, IDisposable
 
     private uint _defence;
 
-    // Passive skill affect bonuses: EApplyType → bonus value (for client AffectAdd)
-    private readonly Dictionary<EApplyType, int> _passiveAffectBonuses = new();
+    // All active affects (passive skills with IsPassive=true + timed buffs/debuffs)
+    private readonly List<ActiveAffect> _activeAffects = new();
+
+    // EPoint → EApplyType mapping for stats driven by affects
+    private static readonly Dictionary<EPoint, EApplyType> _pointToApply = new()
+    {
+        [EPoint.CRITICAL_PERCENTAGE]      = EApplyType.CRITICAL_PCT,
+        [EPoint.PENETRATE_PERCENTAGE]     = EApplyType.PENETRATE_PCT,
+        [EPoint.DODGE]                    = EApplyType.DODGE,
+        [EPoint.BLOCK]                    = EApplyType.BLOCK,
+        [EPoint.RESIST_CRITICAL]          = EApplyType.ANTI_CRITICAL_PCT,
+        [EPoint.RESIST_PENETRATE]         = EApplyType.ANTI_PENETRATE_PCT,
+        [EPoint.RESIST_SWORD]             = EApplyType.RESIST_SWORD,
+        [EPoint.RESIST_TWO_HANDED]        = EApplyType.RESIST_TWO_HAND,
+        [EPoint.RESIST_DAGGER]            = EApplyType.RESIST_DAGGER,
+        [EPoint.RESIST_BELL]              = EApplyType.RESIST_BELL,
+        [EPoint.RESIST_FAN]               = EApplyType.RESIST_FAN,
+        [EPoint.RESIST_BOW]               = EApplyType.RESIST_BOW,
+        [EPoint.RESIST_FIRE]              = EApplyType.RESIST_FIRE,
+        [EPoint.RESIST_ELECTRIC]          = EApplyType.RESIST_ELEC,
+        [EPoint.RESIST_MAGIC]             = EApplyType.RESIST_MAGIC,
+        [EPoint.RESIST_WIND]              = EApplyType.RESIST_WIND,
+        [EPoint.RESIST_ICE]               = EApplyType.RESIST_ICE,
+        [EPoint.RESIST_EARTH]             = EApplyType.RESIST_EARTH,
+        [EPoint.RESIST_DARK]              = EApplyType.RESIST_DARK,
+        [EPoint.ITEM_DROP_BONUS]          = EApplyType.ITEM_DROP_BONUS,
+        [EPoint.MAGIC_ATTACK_BONUS]       = EApplyType.MAGIC_ATTACK_BONUS_PER,
+        [EPoint.SKILL_DAMAGE_BONUS]       = EApplyType.SKILL_DAMAGE_BONUS,
+        [EPoint.NORMAL_HIT_DAMAGE_BONUS]  = EApplyType.NORMAL_HIT_DAMAGE_BONUS,
+        [EPoint.SKILL_DEFEND_BONUS]       = EApplyType.SKILL_DEFEND_BONUS,
+        [EPoint.NORMAL_HIT_DEFEND_BONUS]  = EApplyType.NORMAL_HIT_DEFEND_BONUS,
+        [EPoint.ATTACK_BONUS_HUMAN]       = EApplyType.ATTACK_BONUS_HUMAN,
+        [EPoint.ATTACK_BONUS_WARRIOR]     = EApplyType.ATTACK_BONUS_WARRIOR,
+        [EPoint.ATTACK_BONUS_ASSASSIN]    = EApplyType.ATTACK_BONUS_ASSASSIN,
+        [EPoint.ATTACK_BONUS_SURA]        = EApplyType.ATTACK_BONUS_SURA,
+        [EPoint.ATTACK_BONUS_SHAMAN]      = EApplyType.ATTACK_BONUS_SHAMAN,
+        [EPoint.ATTACK_BONUS_MONSTER]     = EApplyType.ATTACK_BONUS_MONSTER,
+        [EPoint.RESIST_WARRIOR]           = EApplyType.RESIST_WARRIOR,
+        [EPoint.RESIST_ASSASSIN]          = EApplyType.RESIST_ASSASSIN,
+        [EPoint.RESIST_SURA]              = EApplyType.RESIST_SURA,
+        [EPoint.RESIST_SHAMAN]            = EApplyType.RESIST_SHAMAN,
+        [EPoint.MALL_ATT_BONUS]           = EApplyType.MALL_ATTACK_BONUS,
+        [EPoint.MALL_DEF_BONUS]           = EApplyType.MALL_DEF_BONUS,
+        [EPoint.MALL_EXP_BONUS]           = EApplyType.MALL_EXP_BONUS,
+        [EPoint.MALL_ITEM_BONUS]          = EApplyType.MALL_ITEM_BONUS,
+        [EPoint.MALL_GOLD_BONUS]          = EApplyType.MALL_GOLD_BONUS,
+    };
 
     // Client slot model: 4 inventory pages (4 * 45 = 180), then equipment slots.
     private const ushort CLIENT_INVENTORY_PAGE_COUNT = 4;
@@ -100,10 +146,13 @@ public class PlayerEntity : Entity, IPlayerEntity, IDisposable
 
     private const int PERSIST_INTERVAL = 30 * 1000; // 30s
     private ServerTimestamp? _lastPersistTime;
+    private readonly SemaphoreSlim _dbLock = new(1, 1);
     private const int HEALTH_REGEN_INTERVAL = 3 * 1000;
     private const int MANA_REGEN_INTERVAL = 3 * 1000;
+    private const long COMBAT_REGEN_PAUSE_MS = 10_000; // no HP regen for 10s after taking damage
     private ServerTimestamp? _lastHealthRegenTime;
     private ServerTimestamp? _lastManaRegenTime;
+    private long _lastDamagedTick; // Environment.TickCount64 snapshot, 0 = never damaged
     private readonly IItemManager _itemManager;
     private readonly IJobManager _jobManager;
     private readonly IExperienceManager _experienceManager;
@@ -191,6 +240,12 @@ public class PlayerEntity : Entity, IPlayerEntity, IDisposable
         CalculateAttackSpeed();
     }
 
+    public override int Damage(IEntity attacker, EDamageType damageType, int damage)
+    {
+        _lastDamagedTick = Environment.TickCount64;
+        return base.Damage(attacker, damageType, damage);
+    }
+
     public async Task ReloadPermissions()
     {
         Groups.Clear();
@@ -246,6 +301,8 @@ public class PlayerEntity : Entity, IPlayerEntity, IDisposable
     }
 
     public void Move(Coordinates position) => Move((int)position.X, (int)position.Y);
+
+    public void Teleport(int x, int y) => Warp(x, y);
 
     public override void Move(int x, int y)
     {
@@ -537,11 +594,18 @@ public class PlayerEntity : Entity, IPlayerEntity, IDisposable
         var maxHp = GetPoint(EPoint.MAX_HP);
         if (Health < maxHp && !Dead)
         {
-            if (!_lastHealthRegenTime.HasValue)
+            var inCombat = _lastDamagedTick > 0 &&
+                           (Environment.TickCount64 - _lastDamagedTick) < COMBAT_REGEN_PAUSE_MS;
+            if (inCombat)
+            {
+                // Reset timer so the 3-second interval begins fresh once combat ends.
+                _lastHealthRegenTime = null;
+            }
+            else if (!_lastHealthRegenTime.HasValue)
             {
                 // start counting interval only from first viable reset
                 _lastHealthRegenTime = ctx.Timestamp;
-            } 
+            }
             else if (ctx.ElapsedSince(_lastHealthRegenTime.Value) > TimeSpan.FromMilliseconds(HEALTH_REGEN_INTERVAL))
             {
                 var factor = State == EEntityState.IDLE ? 0.05 : 0.01;
@@ -890,9 +954,13 @@ public class PlayerEntity : Entity, IPlayerEntity, IDisposable
                 return Player.MinAttackDamage;
             case EPoint.MAX_ATTACK_DAMAGE:
                 return Player.MaxAttackDamage;
+            case EPoint.ATTACK_GRADE:
+                return (uint)(GetPoint(EPoint.LEVEL) + GetPoint(EPoint.ST) * 2
+                    + Math.Max(0, GetAffectBonus(EApplyType.ATT_GRADE_BONUS)));
             case EPoint.DEFENCE:
             case EPoint.DEFENCE_GRADE:
-                return _defence;
+                return _defence + (uint)Math.Max(0,
+                    GetAffectBonus(EApplyType.DEF_GRADE_BONUS) + GetAffectBonus(EApplyType.DEF_GRADE));
             case EPoint.STATUS_POINTS:
                 return Player.AvailableStatusPoints;
             case EPoint.PLAY_TIME:
@@ -901,35 +969,15 @@ public class PlayerEntity : Entity, IPlayerEntity, IDisposable
                 return Player.AvailableSkillPoints;
             case EPoint.SUB_SKILL:
                 return 1;
-            case EPoint.SKILL_DAMAGE_BONUS:
-            case EPoint.NORMAL_HIT_DAMAGE_BONUS:
-            case EPoint.SKILL_DEFEND_BONUS:
-            case EPoint.NORMAL_HIT_DEFEND_BONUS:
-            case EPoint.MAGIC_ATTACK_BONUS:
-            case EPoint.RESIST_DAGGER:
-            case EPoint.RESIST_BELL:
-            case EPoint.RESIST_FAN:
-            case EPoint.RESIST_BOW:
-            case EPoint.RESIST_FIRE:
-            case EPoint.RESIST_ELECTRIC:
-            case EPoint.RESIST_MAGIC:
-            case EPoint.RESIST_WIND:
-            case EPoint.ITEM_DROP_BONUS:
-            case EPoint.ATTACK_BONUS:
-            case EPoint.DEFENCE_BONUS:
             case EPoint.HORSE_SKILL:
-            case EPoint.MALL_ATT_BONUS:
-            case EPoint.MALL_DEF_BONUS:
-            case EPoint.MALL_EXP_BONUS:
-            case EPoint.MALL_ITEM_BONUS:
-            case EPoint.MALL_GOLD_BONUS:
-            case EPoint.RESIST_ICE:
-            case EPoint.RESIST_EARTH:
-            case EPoint.RESIST_DARK:
-            case EPoint.RESIST_CRITICAL:
-            case EPoint.RESIST_PENETRATE:
                 return 0;
             default:
+                if (_pointToApply.TryGetValue(point, out var applyType))
+                {
+                    var bonus = GetAffectBonus(applyType);
+                    return bonus > 0 ? (uint)bonus : 0;
+                }
+
                 if (Enum.GetValues<EPoint>().Contains(point))
                 {
                     _logger.LogWarning("Point {Point} is not implemented on player", point);
@@ -941,15 +989,23 @@ public class PlayerEntity : Entity, IPlayerEntity, IDisposable
 
     private async Task Persist()
     {
-        await QuickSlotBar.Persist();
+        await _dbLock.WaitAsync();
+        try
+        {
+            await QuickSlotBar.Persist();
 
-        Player.PositionX = PositionX;
-        Player.PositionY = PositionY;
+            Player.PositionX = PositionX;
+            Player.PositionY = PositionY;
 
-        await Skills.PersistAsync();
+            await Skills.PersistAsync();
 
-        var playerManager = _scope.ServiceProvider.GetRequiredService<IPlayerManager>();
-        await playerManager.SetPlayerAsync(Player);
+            var playerManager = _scope.ServiceProvider.GetRequiredService<IPlayerManager>();
+            await playerManager.SetPlayerAsync(Player);
+        }
+        finally
+        {
+            _dbLock.Release();
+        }
     }
 
     protected override void OnNewNearbyEntity(IEntity entity)
@@ -1347,15 +1403,76 @@ public class PlayerEntity : Entity, IPlayerEntity, IDisposable
         Connection.Send(points);
     }
 
-    public void ClearPassiveAffectBonuses() => _passiveAffectBonuses.Clear();
+    /// <summary>Sum of all active affect bonuses for the given stat (passive + timed).</summary>
+    public int GetAffectBonus(EApplyType applyOn) =>
+        _activeAffects.Where(a => a.ApplyOn == applyOn).Sum(a => a.Value);
 
-    public void AddPassiveAffectBonus(EApplyType type, int value)
+    /// <summary>Remove all passive (IsPassive=true) affects from the list without sending AffectRemove
+    /// — caller will immediately re-add them with fresh values.</summary>
+    public void ClearPassiveAffects()
     {
-        _passiveAffectBonuses[type] = _passiveAffectBonuses.GetValueOrDefault(type, 0) + value;
+        _activeAffects.RemoveAll(a => a.IsPassive);
     }
 
-    public int GetPassiveAffectBonus(EApplyType type) =>
-        _passiveAffectBonuses.GetValueOrDefault(type, 0);
+    /// <summary>Add or replace an affect. Duration &lt;= 0 means infinite (no EventSystem event).
+    /// For passive skill bonuses use isPassive=true so they are batch-cleared on re-apply.</summary>
+    public void AddAffect(uint type, EApplyType applyOn, int value, uint flag, int duration, int spCost,
+        bool isPassive = false)
+    {
+        if (value == 0) return;
+
+        // Replace existing affect with same type+applyOn
+        var existing = _activeAffects.FirstOrDefault(a => a.Type == type && a.ApplyOn == applyOn);
+        if (existing is not null)
+        {
+            if (existing.ExpiryEventId >= 0) EventSystem.CancelEvent(existing.ExpiryEventId);
+            _activeAffects.Remove(existing);
+            if (!isPassive) Connection.Send(new AffectRemove { Type = type, ApplyOn = (byte)applyOn });
+        }
+
+        var affect = new ActiveAffect
+        {
+            Type = type, ApplyOn = applyOn, Value = value, Flag = flag,
+            SpCost = spCost, IsPassive = isPassive
+        };
+
+        if (duration > 0)
+        {
+            affect.ExpiryEventId = EventSystem.EnqueueEvent(() =>
+            {
+                RemoveAffect(type, applyOn);
+                return TimeSpan.Zero;
+            }, TimeSpan.FromSeconds(duration));
+        }
+
+        _activeAffects.Add(affect);
+
+        Connection.Send(new AffectAdd
+        {
+            Type = type,
+            PointApplyOn = (byte)applyOn,
+            ApplyValue = value,
+            Flag = flag,
+            Duration = duration <= 0 ? -1 : duration,
+            SpCost = spCost
+        });
+
+        // Recalculate defence if the affect modifies it
+        if (applyOn is EApplyType.DEF_GRADE_BONUS or EApplyType.DEF_GRADE) CalculateDefence();
+    }
+
+    /// <summary>Remove an affect by type+applyOn, cancel its expiry event, and notify the client.</summary>
+    public void RemoveAffect(uint type, EApplyType applyOn)
+    {
+        var affect = _activeAffects.FirstOrDefault(a => a.Type == type && a.ApplyOn == applyOn);
+        if (affect is null) return;
+
+        if (affect.ExpiryEventId >= 0) EventSystem.CancelEvent(affect.ExpiryEventId);
+        _activeAffects.Remove(affect);
+        Connection.Send(new AffectRemove { Type = type, ApplyOn = (byte)applyOn });
+
+        if (affect.ApplyOn is EApplyType.DEF_GRADE_BONUS or EApplyType.DEF_GRADE) CalculateDefence();
+    }
 
     public void SendInventory()
     {
@@ -1535,6 +1652,7 @@ public class PlayerEntity : Entity, IPlayerEntity, IDisposable
 
     public void Dispose()
     {
+        _dbLock.Dispose();
         _scope.Dispose();
     }
 }

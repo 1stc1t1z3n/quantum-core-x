@@ -83,6 +83,7 @@ internal class MockedGameConnection : IGameConnection
     public IPAddress BoundIpAddress { get; } = IPAddress.Loopback;
     public Guid? AccountId { get; set; } = Guid.NewGuid();
     public string Username { get; set; } = "";
+    public string Locale { get; set; } = "";
     public IPlayerEntity? Player { get; set; }
 
     public bool HandleHandshake(GcHandshakeData handshake)

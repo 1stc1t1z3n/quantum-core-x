@@ -310,6 +310,14 @@ public abstract class Entity : IEntity
             });
         }
 
+        // Dodge check — ranged attacks only; victim rolls against their DODGE stat
+        var dodgePct = victim.GetPoint(EPoint.DODGE);
+        if (dodgePct > 0 && CoreRandom.PercentageCheck(dodgePct))
+        {
+            victim.Damage(this, EDamageType.NORMAL_RANGE, 0);
+            return;
+        }
+
         victim.Damage(this, EDamageType.NORMAL_RANGE, damage);
     }
 
@@ -376,18 +384,22 @@ public abstract class Entity : IEntity
         var isCritical = false;
         var isPenetrate = false;
 
-        var criticalPercentage = attacker.GetPoint(EPoint.CRITICAL_PERCENTAGE);
+        var criticalPercentage = (int)attacker.GetPoint(EPoint.CRITICAL_PERCENTAGE);
         if (criticalPercentage > 0)
         {
-            var resist = GetPoint(EPoint.RESIST_CRITICAL);
-            criticalPercentage = resist > criticalPercentage ? 0 : criticalPercentage - resist;
-            if (CoreRandom.PercentageCheck(criticalPercentage))
+            // Soft cap: raw values >= 10 become 5 + (raw-10)/4; below 10 are halved (matches C++ battle.cpp)
+            criticalPercentage = criticalPercentage >= 10
+                ? 5 + (criticalPercentage - 10) / 4
+                : criticalPercentage / 2;
+            var resist = (int)GetPoint(EPoint.RESIST_CRITICAL);
+            criticalPercentage = Math.Max(0, criticalPercentage - resist);
+            if (criticalPercentage > 0 && CoreRandom.PercentageCheck((uint)criticalPercentage))
             {
                 isCritical = true;
                 damage *= 2;
-                // todo send effect to clients
+                // todo send SE_CRITICAL effect to clients
                 SendDebugDamage(attacker,
-                    $"{attacker}->{this} Critical hit -> {damage} (percentage was {criticalPercentage})");
+                    $"{attacker}->{this} Critical hit -> {damage} (effective% was {criticalPercentage})");
             }
         }
 

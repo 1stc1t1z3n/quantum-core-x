@@ -507,7 +507,7 @@ public class PlayerSkills : IPlayerSkills
 
     public void ApplyPassiveAffects()
     {
-        _player.ClearPassiveAffectBonuses();
+        _player.ClearPassiveAffects();
 
         foreach (var skillId in PassiveSkillIds)
         {
@@ -518,27 +518,18 @@ public class PlayerSkills : IPlayerSkills
             if (proto is null) continue;
 
             var level = (int)skill.Level;
-            SendAffect(proto.AffectFlag, proto.PointOnType, proto.PointPoly, level);
-            SendAffect(proto.AffectFlag2, proto.PointOnType2, proto.PointPoly2, level);
+            ApplyPassiveAffect(proto.AffectFlag, proto.PointOnType, proto.PointPoly, level);
+            ApplyPassiveAffect(proto.AffectFlag2, proto.PointOnType2, proto.PointPoly2, level);
         }
     }
 
-    private void SendAffect(EAffectFlags affectFlag, EApplyType applyOn, string poly, int level)
+    private void ApplyPassiveAffect(EAffectFlags affectFlag, EApplyType applyOn, string poly, int level)
     {
         if (applyOn == EApplyType.NONE) return;
         var value = EvaluatePoly(poly, level);
         if (value == 0) return;
 
-        _player.AddPassiveAffectBonus(applyOn, value);
-        _player.Connection.Send(new AffectAdd
-        {
-            Type = (uint)affectFlag,
-            PointApplyOn = (byte)applyOn,
-            ApplyValue = value,
-            Flag = 0,
-            Duration = -1,
-            SpCost = 0
-        });
+        _player.AddAffect((uint)affectFlag, applyOn, value, 0, -1, 0, isPassive: true);
     }
 
     private static int EvaluatePoly(string poly, int level)
