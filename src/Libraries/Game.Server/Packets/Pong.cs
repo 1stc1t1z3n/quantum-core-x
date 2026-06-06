@@ -2,7 +2,7 @@
 
 namespace QuantumCore.Game.Packets;
 
-[Packet(0xFE, EDirection.INCOMING /*, Sequence = true*/)] // sequence only when connection is encrypted - how?
+[Packet(0xFE, EDirection.INCOMING)]
 [PacketGenerator]
 public partial class Pong
 {
