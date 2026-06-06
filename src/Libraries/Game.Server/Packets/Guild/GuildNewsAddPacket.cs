@@ -17,7 +17,7 @@ public partial class GuildNewsAddPacket : IPacketSerializable
     public static byte Header => 0x50;
     public static byte? SubHeader => 0x05;
     public static bool HasStaticSize => false;
-    public static bool HasSequence => false;
+    public static bool HasSequence => true;
 
     public void Serialize(byte[] bytes, in int offset = 0)
     {

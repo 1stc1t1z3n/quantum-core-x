@@ -2,7 +2,7 @@ using QuantumCore.Networking;
 
 namespace QuantumCore.Game.Packets.Party;
 
-[Packet(0x49, EDirection.INCOMING)]
+[Packet(0x49, EDirection.INCOMING, Sequence = true)]
 [PacketGenerator]
 public partial class PartyInviteAnswer
 {

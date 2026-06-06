@@ -3,7 +3,7 @@ using QuantumCore.Networking;
 namespace QuantumCore.Game.Packets.Party;
 
 // CG: leave party or kick a member (pid = target player id; 0 = self-leave)
-[Packet(0x4A, EDirection.INCOMING)]
+[Packet(0x4A, EDirection.INCOMING, Sequence = true)]
 [PacketGenerator]
 public partial class PartyLeave
 {

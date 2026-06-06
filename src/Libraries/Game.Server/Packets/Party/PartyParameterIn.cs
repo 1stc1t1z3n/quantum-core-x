@@ -2,7 +2,7 @@ using QuantumCore.Networking;
 
 namespace QuantumCore.Game.Packets.Party;
 
-[Packet(0x4E, EDirection.INCOMING)]
+[Packet(0x4E, EDirection.INCOMING, Sequence = true)]
 [PacketGenerator]
 public partial class PartyParameterIn
 {
