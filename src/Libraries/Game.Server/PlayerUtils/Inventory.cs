@@ -203,6 +203,12 @@ public class Inventory : IInventory
     {
         _items.Clear();
 
+        // Always rebuild the Redis list from DB on login so items added since the last
+        // Redis snapshot are not silently lost. GetItems() uses the list as a fast-path
+        // and skips the DB entirely when the list looks valid — deleting it here forces
+        // the DB-authoritative rebuild path every time a player logs in.
+        await _cacheManager.Server.Del($"items:{Owner}:{(byte)Window}");
+
         var pageSize = _width * _height;
         await foreach (var item in _itemRepository.GetItems(_cacheManager, Owner, Window))
         {
