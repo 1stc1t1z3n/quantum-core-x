@@ -1,5 +1,6 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using QuantumCore.API;
+using QuantumCore.API.Game.Types.Skills;
 using QuantumCore.API.PluginTypes;
 using QuantumCore.Game.Packets;
 
@@ -16,8 +17,17 @@ public class UseSkillHandler : IGamePacketHandler<PlayerUseSkill>
 
     public Task ExecuteAsync(GamePacketContext<PlayerUseSkill> ctx, CancellationToken token = default)
     {
-        _logger.LogWarning("SkillId: {SkillId} on TargetVid: {TargetVid} not implemented", ctx.Packet.SkillId,
-            ctx.Packet.TargetVid);
+        var player = ctx.Connection.Player;
+        if (player is null) return Task.CompletedTask;
+
+        if (!Enum.IsDefined(typeof(ESkill), (byte)ctx.Packet.SkillId))
+        {
+            _logger.LogDebug("Unknown skill id {SkillId}", ctx.Packet.SkillId);
+            return Task.CompletedTask;
+        }
+
+        var skillId = (ESkill)(byte)ctx.Packet.SkillId;
+        player.Skills.UseActiveSkill(skillId);
         return Task.CompletedTask;
     }
 }

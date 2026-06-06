@@ -24,4 +24,7 @@ public interface IPlayerSkills
 
     bool LearnSkillByBook(ESkill skillId);
     void SetSkillNextReadTime(ESkill skillId, int time);
+
+    /// <summary>Cast an active (non-passive) skill. Returns false if on cooldown or unavailable.</summary>
+    bool UseActiveSkill(ESkill skillId);
 }

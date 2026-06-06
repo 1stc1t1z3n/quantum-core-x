@@ -4,6 +4,7 @@ using EnumsNET;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using QuantumCore.API;
+using QuantumCore.API.Core.Models;
 using QuantumCore.API.Extensions;
 using QuantumCore.API.Game.Skills;
 using QuantumCore.API.Game.Types.Entities;
@@ -24,6 +25,8 @@ public class PlayerSkills : IPlayerSkills
 {
     private readonly ConcurrentDictionary<ESkill, Skill>
         _skills = new(); //todo: probably no need for concurrent variant
+
+    private readonly Dictionary<ESkill, DateTimeOffset> _cooldownExpiry = new();
 
     private readonly ILogger<PlayerSkills> _logger;
     private readonly PlayerEntity _player;
@@ -530,6 +533,49 @@ public class PlayerSkills : IPlayerSkills
         if (value == 0) return;
 
         _player.AddAffect((uint)affectFlag, applyOn, value, 0, -1, 0, isPassive: true);
+    }
+
+    public bool UseActiveSkill(ESkill skillId)
+    {
+        var proto = _skillManager.GetSkill(skillId);
+        if (proto is null || proto.Type == ESkillCategoryType.PASSIVE_SKILLS) return false;
+        if (!CanUse(skillId)) return false;
+
+        var level = (int)GetSkillLevel(skillId);
+        if (level == 0) return false;
+
+        if (_cooldownExpiry.TryGetValue(skillId, out var expiry) && DateTimeOffset.UtcNow < expiry)
+            return false;
+
+        // Apply buff component (present on pure-buff skills AND on hybrid attack/buff skills like Berserk)
+        if (proto.PointOnType != EApplyType.NONE)
+        {
+            var value = EvaluatePoly(proto.PointPoly, level);
+            var duration = EvaluatePoly(proto.DurationPoly, level);
+            if (value != 0)
+                _player.AddAffect((uint)skillId, proto.PointOnType, value, (uint)proto.AffectFlag, duration, 0);
+        }
+
+        if (proto.PointOnType2 != EApplyType.NONE)
+        {
+            var value2 = EvaluatePoly(proto.PointPoly2, level);
+            var duration2 = EvaluatePoly(
+                string.IsNullOrEmpty(proto.DurationPoly2) ? proto.DurationPoly : proto.DurationPoly2, level);
+            if (value2 != 0)
+                _player.AddAffect((uint)skillId, proto.PointOnType2, value2, (uint)proto.AffectFlag2, duration2, 0);
+        }
+
+        // Attack component handled client-side; server damage formula is Sprint 2.A
+
+        ApplyCooldown(skillId, proto, level);
+        return true;
+    }
+
+    private void ApplyCooldown(ESkill skillId, SkillData proto, int level)
+    {
+        var cooldown = EvaluatePoly(proto.CooldownPoly, level);
+        if (cooldown > 0)
+            _cooldownExpiry[skillId] = DateTimeOffset.UtcNow.AddSeconds(cooldown);
     }
 
     private static int EvaluatePoly(string poly, int level)
