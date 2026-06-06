@@ -30,6 +30,7 @@ public interface IPlayerEntity : IEntity
     Task ReloadPermissions();
     T? GetQuestInstance<T>() where T : class, IQuest;
     void Respawn(bool town);
+    void Teleport(int x, int y);
     uint CalculateAttackDamage(uint baseDamage);
     uint GetHitRate();
     void AddPoint(EPoint point, int value);

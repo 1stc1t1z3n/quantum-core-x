@@ -21,7 +21,7 @@ public class World : IWorld, ILoadable
     private uint _vid;
     private readonly Grid<IMap> _world = new(0, 0);
     private readonly Dictionary<string, IMap> _maps = new();
-    private readonly Dictionary<string, IPlayerEntity> _players = new();
+    private readonly Dictionary<string, IPlayerEntity> _players = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<uint, SpawnGroup> _groups = new();
     private readonly Dictionary<uint, SpawnGroupCollection> _groupCollections = new();
 

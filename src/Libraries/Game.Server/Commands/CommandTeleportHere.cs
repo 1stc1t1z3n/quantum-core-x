@@ -25,7 +25,7 @@ public class CommandTeleportHere : ICommandHandler<TeleportHereOptions>
         else
         {
             ctx.Player.SendChatInfo($"Teleporting {target.Name} to your position");
-            target.Move(ctx.Player.PositionX, ctx.Player.PositionY);
+            target.Teleport(ctx.Player.PositionX, ctx.Player.PositionY);
         }
 
         return Task.CompletedTask;
