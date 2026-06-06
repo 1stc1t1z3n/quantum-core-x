@@ -1,6 +1,7 @@
 #nullable enable
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using QuantumCore.API.Core.Models;
 using QuantumCore.API.Game.Types.Items;
 using QuantumCore.Caching;
@@ -22,17 +23,19 @@ public interface IItemRepository
 public class ItemRepository : IItemRepository
 {
     private readonly IRedisStore _cacheManager;
-    private readonly GameDbContext _db;
+    private readonly IServiceScopeFactory _scopeFactory;
 
-    public ItemRepository(ICacheManager cacheManager, GameDbContext db)
+    public ItemRepository(ICacheManager cacheManager, IServiceScopeFactory scopeFactory)
     {
         _cacheManager = cacheManager.Server;
-        _db = db;
+        _scopeFactory = scopeFactory;
     }
 
     public async Task<IEnumerable<Guid>> GetItemIdsForPlayerAsync(uint playerId, WindowType window)
     {
-        return await _db.Items
+        await using var scope = _scopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<GameDbContext>();
+        return await db.Items
             .Where(x => x.PlayerId == playerId && x.Window == (byte)window)
             .Select(x => x.Id)
             .ToArrayAsync();
@@ -40,7 +43,9 @@ public class ItemRepository : IItemRepository
 
     public async Task<ItemInstance?> GetItemAsync(Guid id)
     {
-        return await _db.Items
+        await using var scope = _scopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<GameDbContext>();
+        return await db.Items
             .Where(x => x.Id == id)
             .SelectInstance()
             .FirstOrDefaultAsync();
@@ -48,30 +53,58 @@ public class ItemRepository : IItemRepository
 
     public async Task DeletePlayerItemsAsync(uint playerId)
     {
-        await _db.Items.Where(x => x.PlayerId == playerId).ExecuteDeleteAsync();
+        await using var scope = _scopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<GameDbContext>();
+        await db.Items.Where(x => x.PlayerId == playerId).ExecuteDeleteAsync();
     }
 
     public async Task DeletePlayerItemAsync(uint playerId, uint itemId)
     {
-        await _db.Items.Where(x => x.PlayerId == playerId && x.ItemId == itemId).ExecuteDeleteAsync();
+        await using var scope = _scopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<GameDbContext>();
+        await db.Items.Where(x => x.PlayerId == playerId && x.ItemId == itemId).ExecuteDeleteAsync();
     }
 
     public async Task DeleteItemAsync(Guid id)
     {
-        await _db.Items.Where(x => x.Id == id).ExecuteDeleteAsync();
+        await using var scope = _scopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<GameDbContext>();
+        await db.Items.Where(x => x.Id == id).ExecuteDeleteAsync();
     }
 
     public async Task SaveItemAsync(ItemInstance item)
     {
+        await using var scope = _scopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<GameDbContext>();
+
         if (item.Id != Guid.Empty)
         {
-            await _db.Items.Where(x => x.Id == item.Id)
+            var rowsAffected = await db.Items.Where(x => x.Id == item.Id)
                 .ExecuteUpdateAsync(p => p
                     .SetProperty(x => x.PlayerId, x => item.PlayerId)
                     .SetProperty(x => x.Count, x => item.Count)
                     .SetProperty(x => x.Window, x => (byte)item.Window)
                     .SetProperty(x => x.Position, x => item.Position)
+                    .SetProperty(x => x.UpdatedAt, x => DateTime.UtcNow)
                 );
+
+            if (rowsAffected == 0)
+            {
+                // Row missing (e.g. stale cache after manual DB change) — re-insert it.
+                var dbItem = new Item
+                {
+                    Id = item.Id,
+                    PlayerId = item.PlayerId,
+                    ItemId = item.ItemId,
+                    Window = (byte)item.Window,
+                    Position = item.Position,
+                    Count = item.Count,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                };
+                db.Items.Add(dbItem);
+                await db.SaveChangesAsync();
+            }
         }
         else
         {
@@ -86,8 +119,8 @@ public class ItemRepository : IItemRepository
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
             };
-            _db.Items.Add(dbItem);
-            await _db.SaveChangesAsync();
+            db.Items.Add(dbItem);
+            await db.SaveChangesAsync();
             item.Id = dbItem.Id;
         }
 

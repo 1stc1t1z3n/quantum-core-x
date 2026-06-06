@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using QuantumCore.API;
 using QuantumCore.API.Core.Models;
@@ -16,15 +17,15 @@ public class QuickSlotBar : IQuickSlotBar
 {
     private readonly IRedisStore _cacheManager;
     private readonly ILogger _logger;
-    private readonly GameDbContext _db;
+    private readonly IServiceScopeFactory _scopeFactory;
     public IPlayerEntity Player { get; }
     public QuickSlotData?[] Slots { get; } = new QuickSlotData[8];
 
-    public QuickSlotBar(ICacheManager cacheManager, ILogger<QuickSlotBar> logger, PlayerEntity player, GameDbContext db)
+    public QuickSlotBar(ICacheManager cacheManager, ILogger<QuickSlotBar> logger, PlayerEntity player, IServiceScopeFactory scopeFactory)
     {
         _cacheManager = cacheManager.Server;
         _logger = logger;
-        _db = db;
+        _scopeFactory = scopeFactory;
         Player = player;
     }
 
@@ -51,7 +52,9 @@ public class QuickSlotBar : IQuickSlotBar
             return;
         }
 
-        var dbSlots = await _db.PlayerQuickSlots
+        await using var scope = _scopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<GameDbContext>();
+        var dbSlots = await db.PlayerQuickSlots
             .AsNoTracking()
             .Where(x => x.PlayerId == Player.Player.Id)
             .ToDictionaryAsync(x => x.Slot);
@@ -71,7 +74,10 @@ public class QuickSlotBar : IQuickSlotBar
         var key = $"player:quickbar:{Player.Player.Id}";
 
         await _cacheManager.Set(key, Slots);
-        var dbPlayer = await _db.Players
+
+        await using var scope = _scopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<GameDbContext>();
+        var dbPlayer = await db.Players
             .Include(x => x.QuickSlots)
             .FirstOrDefaultAsync(x => x.Id == Player.Player.Id);
         if (dbPlayer is null) return;
@@ -83,7 +89,7 @@ public class QuickSlotBar : IQuickSlotBar
             dbPlayer.QuickSlots.Add(new PlayerQuickSlot {Slot = (byte)i, Type = slot.Type, Value = slot.Position});
         }
 
-        await _db.SaveChangesAsync();
+        await db.SaveChangesAsync();
     }
 
     public void Send()
@@ -109,8 +115,6 @@ public class QuickSlotBar : IQuickSlotBar
         {
             return;
         }
-
-        // todo verify type, and position?
 
         Slots[position] = slot;
         Player.Connection.Send(new QuickBarAddOut
