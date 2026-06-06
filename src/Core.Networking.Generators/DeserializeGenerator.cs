@@ -69,8 +69,11 @@ internal class DeserializeGenerator
             // packets dynamic strings will send their size in an early field but this field is the size of the whole
             // packet not just the dynamic field's size
             var isDynamicSizeField = fieldsCopy.Any(x => x.SizeFieldName == field.Name);
-            // + 1 because string includes a 0 byte at the end
-            var staticSizeString = isDynamicSizeField ? $" - {typeStaticSize + 1}" : "";
+            // + 1 for strings only: null terminator is included in the wire size but not in .Length
+            // byte arrays have no null terminator, so no +1
+            var dynamicField = fieldsCopy.FirstOrDefault(x => x.SizeFieldName == field.Name);
+            var nullTermOffset = dynamicField is {IsArray: false, SemanticType.Name: "String"} ? 1 : 0;
+            var staticSizeString = isDynamicSizeField ? $" - {typeStaticSize + nullTermOffset}" : "";
             sb.Append($"{indentPrefix}var {GetVariableNameForExpression(field.Name)} = {line}{staticSizeString}");
             if (field is not {IsArray: true, HasDynamicLength: true} || (field.IsArray &&
                                                                          (field.SemanticType as IArrayTypeSymbol)
