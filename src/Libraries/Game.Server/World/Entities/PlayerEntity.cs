@@ -1633,7 +1633,7 @@ public class PlayerEntity : Entity, IPlayerEntity, IDisposable
             packet.TargetVid = Target.Vid;
             packet.Percentage = Target.HealthPercentage;
             packet.MinHp = (int)Target.Health;
-            packet.MaxHp = Target is MonsterEntity m ? (int)m.Proto.Hp : (int)Target.Health;
+            packet.MaxHp = (int)Target.GetPoint(EPoint.MAX_HP);
         }
 
         Connection.Send(packet);
