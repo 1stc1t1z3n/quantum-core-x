@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using QuantumCore.API;
+using QuantumCore.API.Game.World;
 using QuantumCore.API.PluginTypes;
 using QuantumCore.Game.Packets;
 
@@ -34,6 +35,29 @@ public class AttackHandler : IGamePacketHandler<Attack>
             ctx.Packet.SkillMotion, ctx.Packet.Vid);
 
         attacker.Attack(entity);
+
+        // Broadcast attack sync data to nearby clients so they can update the
+        // victim's push position in real time instead of waiting for SYNC_POSITION.
+        var broadcast = new AttackBroadcast
+        {
+            AttackerVid   = attacker.Vid,
+            VictimVid     = ctx.Packet.Vid,
+            Packet        = ctx.Packet.Packet,
+            DestX         = ctx.Packet.DestX,
+            DestY         = ctx.Packet.DestY,
+            SyncDestX     = ctx.Packet.SyncDestX,
+            SyncDestY     = ctx.Packet.SyncDestY,
+            BlendDuration = ctx.Packet.BlendDuration,
+        };
+
+        foreach (var nearby in attacker.NearbyEntities)
+        {
+            if (nearby is IPlayerEntity player)
+            {
+                player.Connection.Send(broadcast);
+            }
+        }
+
         return Task.CompletedTask;
     }
 }
